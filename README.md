@@ -177,8 +177,8 @@ Ecommerce.sln
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/your-username/ecommerce-dotnet8.git
-   cd ecommerce-dotnet8
+   git clone https://github.com/Anand9899/E-Commerce.git
+   cd E-Commerce
    ```
 
 2. **Configure Connection String**:
