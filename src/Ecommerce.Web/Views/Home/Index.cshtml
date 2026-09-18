@@ -1,0 +1,533 @@
+@{
+    ViewData["Title"] = "Home - Elevate Your Lifestyle";
+    var featuredProducts = ViewBag.FeaturedProducts as List<ProductListItemVM> ?? new List<ProductListItemVM>();
+    var trendingProducts = ViewBag.TrendingProducts as List<ProductListItemVM> ?? new List<ProductListItemVM>();
+    var categories = ViewBag.Categories as List<CategoryVM> ?? new List<CategoryVM>();
+
+    // Pick a flagship deal of the day product
+    var dealOfTheDay = featuredProducts.FirstOrDefault(p => p.DiscountPercentage > 0) ?? featuredProducts.FirstOrDefault() ?? trendingProducts.FirstOrDefault();
+    var flashProducts = featuredProducts.Where(p => p.DiscountPercentage > 0).Take(4).ToList();
+    if (flashProducts.Count == 0)
+    {
+        flashProducts = featuredProducts.Take(4).ToList();
+    }
+}
+
+<div class="container my-4">
+    <!-- Hero Slider Banner -->
+    <div class="hero-slider-card">
+        <div class="row align-items-center">
+            <div class="col-lg-6 mb-4 mb-lg-0">
+                <span class="hero-tag"><i class="bi bi-fire text-warning me-1"></i> Special Launch Event</span>
+                <h1 class="hero-title text-white">Next-Gen Tech & Premium Fashion</h1>
+                <p class="hero-subtitle">
+                    Discover handpicked flagship smartphones, laptops, high-performance running shoes, and lifestyle essentials with flat discounts.
+                </p>
+                <div class="d-flex flex-wrap gap-3">
+                    <a asp-controller="Shop" asp-action="Index" class="btn btn-primary btn-lg rounded-pill px-4">
+                        Shop Now <i class="bi bi-arrow-right ms-2"></i>
+                    </a>
+                    <a asp-controller="Shop" asp-action="Category" asp-route-slug="electronics" class="btn btn-outline-light btn-lg rounded-pill px-4">
+                        Explore Electronics
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-6 text-center">
+                <img src="https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800&auto=format&fit=crop&q=80" alt="MacBook Pro" class="img-fluid hero-product-img rounded-4" />
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (User.Identity?.IsAuthenticated != true)
+{
+    <!-- Guest Customer Welcome Banner -->
+    <div class="container my-3">
+        <div class="card border-0 rounded-4 shadow-sm p-4 d-flex flex-column flex-md-row align-items-center justify-content-between gap-3" style="background: #ffffff; border: 1px solid rgba(79, 70, 229, 0.12) !important; box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04);">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 50px; height: 50px; font-size: 1.5rem; background: rgba(79, 70, 229, 0.1); color: #4f46e5;">
+                    <i class="bi bi-person-check-fill"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold mb-1 text-dark">Start Shopping Today!</h5>
+                    <p class="text-muted mb-0 small">Please <strong class="text-dark">Sign In</strong> or <strong class="text-dark">Create a Customer Account</strong> to browse our curated catalogue, add items to cart, and enjoy member-exclusive discounts.</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2 flex-shrink-0">
+                <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Url.Action("Index", "Shop")" class="btn btn-outline-primary rounded-pill px-4">Sign In</a>
+                <a asp-controller="Account" asp-action="Register" asp-route-returnUrl="@Url.Action("Index", "Shop")" class="btn btn-primary rounded-pill px-4 shadow-sm">Sign Up Now</a>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Features Strip -->
+<div class="container my-5">
+    <div class="row g-4">
+        <div class="col-md-3 col-6">
+            <div class="d-flex align-items-center gap-3 p-3 bg-white rounded-3 border">
+                <div class="text-primary fs-2"><i class="bi bi-truck"></i></div>
+                <div>
+                    <h6 class="mb-0 fw-bold">Free Shipping</h6>
+                    <small class="text-muted">On all orders above ₹999</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="d-flex align-items-center gap-3 p-3 bg-white rounded-3 border">
+                <div class="text-success fs-2"><i class="bi bi-shield-check"></i></div>
+                <div>
+                    <h6 class="mb-0 fw-bold">100% Genuine</h6>
+                    <small class="text-muted">Direct from official brands</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="d-flex align-items-center gap-3 p-3 bg-white rounded-3 border">
+                <div class="text-warning fs-2"><i class="bi bi-arrow-clockwise"></i></div>
+                <div>
+                    <h6 class="mb-0 fw-bold">Easy Returns</h6>
+                    <small class="text-muted">7-day hassle-free policy</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="d-flex align-items-center gap-3 p-3 bg-white rounded-3 border">
+                <div class="text-info fs-2"><i class="bi bi-headset"></i></div>
+                <div>
+                    <h6 class="mb-0 fw-bold">24/7 Support</h6>
+                    <small class="text-muted">Dedicated support team</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= ⚡ MEGA FLASH SALE & DEAL OF THE DAY SECTION ================= -->
+<div class="container my-5">
+    <div class="p-4 p-md-5 rounded-4 border shadow-sm position-relative overflow-hidden" 
+         style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%); color: #ffffff;">
+        
+        <!-- Flash Sale Header with Live Countdown Timer -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center pb-4 mb-4 border-bottom border-white border-opacity-20">
+            <div class="d-flex align-items-center gap-3 mb-3 mb-md-0">
+                <div class="bg-danger text-white rounded-circle p-2 d-flex align-items-center justify-content-center shadow" style="width: 48px; height: 48px; font-size: 1.5rem;">
+                    <i class="bi bi-lightning-charge-fill"></i>
+                </div>
+                <div>
+                    <div class="d-flex align-items-center gap-2">
+                        <h3 class="fw-bold text-white mb-0">24-Hour Flash Sale</h3>
+                        <span class="badge bg-danger text-white text-uppercase px-2 py-1 rounded-pill" style="font-size: 0.7rem; animation: pulse 1.5s infinite;">
+                            <i class="bi bi-broadcast me-1"></i> LIVE
+                        </span>
+                    </div>
+                    <p class="text-white-50 small mb-0">Deals refresh daily at midnight. Limited stock available at special prices.</p>
+                </div>
+            </div>
+
+            <!-- Countdown Timer Boxes -->
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-white-50 small fw-bold text-uppercase d-none d-sm-inline me-2">Offers End In:</span>
+                <div class="d-flex gap-2 text-center" id="flashSaleTimer">
+                    <div class="bg-black bg-opacity-40 border border-white border-opacity-25 rounded-3 px-3 py-2" style="min-width: 58px;">
+                        <span class="fw-bold fs-5 text-white mono d-block" id="timerHours">04</span>
+                        <small class="text-white-50 text-uppercase" style="font-size: 0.65rem;">Hours</small>
+                    </div>
+                    <span class="fs-4 fw-bold text-white-50 align-self-center">:</span>
+                    <div class="bg-black bg-opacity-40 border border-white border-opacity-25 rounded-3 px-3 py-2" style="min-width: 58px;">
+                        <span class="fw-bold fs-5 text-white mono d-block" id="timerMinutes">28</span>
+                        <small class="text-white-50 text-uppercase" style="font-size: 0.65rem;">Mins</small>
+                    </div>
+                    <span class="fs-4 fw-bold text-white-50 align-self-center">:</span>
+                    <div class="bg-black bg-opacity-40 border border-white border-opacity-25 rounded-3 px-3 py-2" style="min-width: 58px;">
+                        <span class="fw-bold fs-5 text-warning mono d-block" id="timerSeconds">45</span>
+                        <small class="text-white-50 text-uppercase" style="font-size: 0.65rem;">Secs</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 align-items-stretch">
+            <!-- Left: Deal of the Day Spotlight -->
+            @if (dealOfTheDay != null)
+            {
+                <div class="col-lg-5">
+                    <div class="card h-100 border-0 rounded-4 p-4 text-dark shadow position-relative" style="background: #ffffff;">
+                        <div class="position-absolute top-0 start-0 m-3 z-2">
+                            <span class="badge bg-danger text-white px-3 py-2 rounded-pill fw-bold shadow-sm" style="font-size: 0.8rem;">
+                                <i class="bi bi-fire me-1"></i> DEAL OF THE DAY
+                            </span>
+                        </div>
+
+                        <div class="text-center p-3 mb-3" style="min-height: 220px; display: flex; align-items: center; justify-content: center;">
+                            <img src="@dealOfTheDay.PrimaryImageUrl" alt="@dealOfTheDay.Name" class="img-fluid rounded-3" style="max-height: 200px; object-fit: contain;" />
+                        </div>
+
+                        <div class="d-flex flex-column flex-grow-1 justify-content-between">
+                            <div>
+                                <span class="badge bg-primary-subtle text-primary text-uppercase px-2 py-1 mb-2" style="font-size: 0.75rem;">@dealOfTheDay.CategoryName</span>
+                                <h5 class="fw-bold text-dark mb-2">@dealOfTheDay.Name</h5>
+                                
+                                <div class="d-flex align-items-baseline gap-2 mb-3">
+                                    <span class="fs-3 fw-bold text-dark">₹@dealOfTheDay.EffectivePrice.ToString("N0")</span>
+                                    @if (dealOfTheDay.DiscountPrice.HasValue && dealOfTheDay.DiscountPrice.Value < dealOfTheDay.BasePrice)
+                                    {
+                                        <span class="fs-6 text-muted text-decoration-line-through">₹@dealOfTheDay.BasePrice.ToString("N0")</span>
+                                        <span class="badge bg-success text-white">Save @dealOfTheDay.DiscountPercentage%</span>
+                                    }
+                                </div>
+
+                                <!-- Animated Stock Claimed Progress Bar -->
+                                <div class="mb-4">
+                                    <div class="d-flex justify-content-between small fw-bold mb-1">
+                                        <span class="text-danger"><i class="bi bi-fire me-1"></i> Almost Sold Out!</span>
+                                        <span class="text-muted">82% Claimed</span>
+                                    </div>
+                                    <div class="progress rounded-pill" style="height: 8px; background-color: #f1f5f9;">
+                                        <div class="progress-bar bg-danger progress-bar-striped progress-bar-animated" role="progressbar" style="width: 82%;"></div>
+                                    </div>
+                                    <small class="text-muted d-block mt-1">Hurry, only a few units left at this festive discount!</small>
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <a asp-controller="Shop" asp-action="Details" asp-route-slug="@dealOfTheDay.Slug" class="btn btn-outline-primary rounded-pill px-3 flex-grow-1 fw-semibold">
+                                    View Deal
+                                </a>
+                                <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm d-inline-flex align-items-center gap-1"
+                                        onclick="buyNow(@dealOfTheDay.Id, null, 1, this)">
+                                    <i class="bi bi-lightning-charge-fill"></i> Buy Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Right: 4-Item Flash Deals Grid -->
+            <div class="col-lg-7">
+                <div class="row g-3 h-100">
+                    @foreach (var prod in flashProducts)
+                    {
+                        <div class="col-sm-6">
+                            <div class="card h-100 border-0 rounded-4 p-3 bg-white text-dark shadow-sm d-flex flex-column justify-content-between" style="transition: transform 0.2s ease;">
+                                <div>
+                                    <div class="position-relative text-center mb-2" style="height: 120px; display: flex; align-items: center; justify-content: center;">
+                                        <img src="@prod.PrimaryImageUrl" alt="@prod.Name" class="img-fluid rounded-2" style="max-height: 110px; object-fit: contain;" />
+                                        @if (prod.DiscountPercentage > 0)
+                                        {
+                                            <span class="position-absolute top-0 start-0 badge bg-danger text-white rounded-pill px-2 py-1" style="font-size: 0.7rem;">
+                                                -@prod.DiscountPercentage%
+                                            </span>
+                                        }
+                                    </div>
+
+                                    <div class="small text-muted mb-1 text-truncate">@prod.CategoryName</div>
+                                    <a asp-controller="Shop" asp-action="Details" asp-route-slug="@prod.Slug" class="text-dark text-decoration-none fw-bold small d-block mb-2 text-truncate" title="@prod.Name">
+                                        @prod.Name
+                                    </a>
+
+                                    <div class="d-flex align-items-baseline gap-2 mb-2">
+                                        <span class="fw-bold text-dark">₹@prod.EffectivePrice.ToString("N0")</span>
+                                        @if (prod.DiscountPrice.HasValue && prod.DiscountPrice.Value < prod.BasePrice)
+                                        {
+                                            <span class="text-muted text-decoration-line-through small" style="font-size: 0.75rem;">₹@prod.BasePrice.ToString("N0")</span>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="d-flex gap-2 mt-2">
+                                    <a asp-controller="Shop" asp-action="Details" asp-route-slug="@prod.Slug" class="btn btn-outline-secondary btn-sm rounded-pill flex-grow-1" style="font-size: 0.75rem;">
+                                        Details
+                                    </a>
+                                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold" onclick="addToCart(@prod.Id)" title="Quick Add">
+                                        <i class="bi bi-bag-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Explore Categories -->
+<div class="container my-5">
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <span class="text-primary fw-bold text-uppercase fs-7 letter-spacing">Collections</span>
+            <h2 class="mb-0">Shop by Category</h2>
+        </div>
+        <a asp-controller="Shop" asp-action="Index" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+            View All <i class="bi bi-arrow-right"></i>
+        </a>
+    </div>
+
+    <div class="row g-3 g-md-4">
+        @foreach (var cat in categories)
+        {
+            <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                <a asp-controller="Shop" asp-action="Category" asp-route-slug="@cat.Slug" class="cat-card">
+                    <div class="cat-icon-circle">
+                        <i class="bi @(cat.IconClass ?? "bi-grid")"></i>
+                    </div>
+                    <h6 class="fw-bold mb-1">@cat.Name</h6>
+                    <small class="text-muted">@cat.ProductCount items</small>
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Men & Women Fashion Spotlight Duo -->
+<div class="container my-5">
+    <div class="row g-4">
+        <!-- Men's Collection Banner -->
+        <div class="col-lg-6">
+            <div class="fashion-duo-card fashion-men-card p-4 p-md-5 rounded-4 position-relative overflow-hidden shadow-sm">
+                <div class="position-relative z-1" style="max-width: 320px;">
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill fw-bold text-uppercase mb-2" style="font-size: 0.75rem;">
+                        <i class="bi bi-person-standing me-1"></i> Men's Collection
+                    </span>
+                    <h3 class="fw-bold text-white mb-2" style="letter-spacing: -0.02em;">Classic & Modern Men's Apparel</h3>
+                    <p class="text-white-50 small mb-4">
+                        Premium Oxford Shirts, Rugged Stretch Denim, Formal Blazers, Festive Silk Kurtas & Sportswear.
+                    </p>
+                    <a asp-controller="Shop" asp-action="Category" asp-route-slug="mens-fashion" class="btn btn-light rounded-pill px-4 py-2 fw-semibold shadow-sm text-primary d-inline-flex align-items-center gap-2">
+                        <span>Shop Men's Wear</span>
+                        <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Women's Collection Banner -->
+        <div class="col-lg-6">
+            <div class="fashion-duo-card fashion-women-card p-4 p-md-5 rounded-4 position-relative overflow-hidden shadow-sm">
+                <div class="position-relative z-1" style="max-width: 320px;">
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-1 rounded-pill fw-bold text-uppercase mb-2" style="font-size: 0.75rem;">
+                        <i class="bi bi-person-standing-dress me-1"></i> Women's Collection
+                    </span>
+                    <h3 class="fw-bold text-white mb-2" style="letter-spacing: -0.02em;">Chic & Elegant Women's Apparel</h3>
+                    <p class="text-white-50 small mb-4">
+                        Floral Maxi Dresses, Banarasi Silk Sarees, Anarkali Sets, Stretch High-Rise Jeans & Tops.
+                    </p>
+                    <a asp-controller="Shop" asp-action="Category" asp-route-slug="womens-fashion" class="btn btn-light rounded-pill px-4 py-2 fw-semibold shadow-sm text-danger d-inline-flex align-items-center gap-2">
+                        <span>Shop Women's Wear</span>
+                        <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Featured Products Section -->
+<div class="container my-5">
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <span class="text-primary fw-bold text-uppercase fs-7">Curated Picks</span>
+            <h2 class="mb-0">Featured Products</h2>
+        </div>
+        <a asp-controller="Shop" asp-action="Index" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+            See More <i class="bi bi-arrow-right"></i>
+        </a>
+    </div>
+
+    <div class="row g-4">
+        @foreach (var product in featuredProducts)
+        {
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="product-card" data-href="@Url.Action("Details", "Shop", new { slug = product.Slug })">
+                    <a asp-controller="Shop" asp-action="Details" asp-route-slug="@product.Slug" class="product-img-wrap">
+                        <img src="@product.PrimaryImageUrl" alt="@product.Name" loading="lazy" />
+                        <div class="product-badges">
+                            @if (product.DiscountPercentage > 0)
+                            {
+                                <span class="badge-discount">-@product.DiscountPercentage%</span>
+                            }
+                            @if (product.IsFeatured)
+                            {
+                                <span class="badge-featured">Featured</span>
+                            }
+                        </div>
+                        <button type="button" class="wishlist-btn-corner @(product.IsInWishlist ? "active" : "")" onclick="toggleWishlist(@product.Id, this); event.stopPropagation();" title="Add to Wishlist">
+                            <i class="bi @(product.IsInWishlist ? "bi-heart-fill" : "bi-heart")"></i>
+                        </button>
+                    </a>
+
+                    <div class="product-body">
+                        <div class="product-category">@product.CategoryName</div>
+                        <a asp-controller="Shop" asp-action="Details" asp-route-slug="@product.Slug" class="product-title" title="@product.Name">
+                            @product.Name
+                        </a>
+
+                        <div class="rating-stars mb-2">
+                            @for (int i = 1; i <= 5; i++)
+                            {
+                                if (i <= Math.Floor(product.AverageRating))
+                                {
+                                    <i class="bi bi-star-fill"></i>
+                                }
+                                else if (i - product.AverageRating <= 0.5)
+                                {
+                                    <i class="bi bi-star-half"></i>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-star"></i>
+                                }
+                            }
+                            <span class="rating-count ms-1">(@product.TotalReviews)</span>
+                        </div>
+
+                        <div class="product-price-row">
+                            <div>
+                                <span class="price-current">₹@product.EffectivePrice.ToString("N0")</span>
+                                @if (product.DiscountPrice.HasValue && product.DiscountPrice.Value < product.BasePrice)
+                                {
+                                    <span class="price-old">₹@product.BasePrice.ToString("N0")</span>
+                                }
+                            </div>
+                            <button type="button" class="btn-add-cart-mini" onclick="addToCart(@product.Id); event.stopPropagation();" title="Add to Cart">
+                                <i class="bi bi-bag-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Promo Promotional Banner -->
+<div class="container my-5">
+    <div class="p-4 p-md-5 rounded-4" style="background: linear-gradient(135deg, #312e81 0%, #4f46e5 100%); color: #fff;">
+        <div class="row align-items-center">
+            <div class="col-lg-8 mb-3 mb-lg-0">
+                <span class="badge bg-warning text-dark fw-bold px-3 py-2 mb-3">Festive Season Offer</span>
+                <h2 class="text-white mb-2">Save up to 20% on all orders with coupon: SUPERDEAL</h2>
+                <p class="text-white-50 mb-0">Apply promo code at checkout to claim instant discounts on smart tech, audio gadgets, and premium sportswear.</p>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+                <a asp-controller="Shop" asp-action="Index" class="btn btn-light btn-lg rounded-pill px-4 fw-bold text-primary">
+                    Claim Discount <i class="bi bi-arrow-right ms-1"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trending Deals Section -->
+<div class="container my-5">
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <span class="text-primary fw-bold text-uppercase fs-7">Hot Right Now</span>
+            <h2 class="mb-0">Trending Products</h2>
+        </div>
+        <a asp-controller="Shop" asp-action="Index" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+            Explore All <i class="bi bi-arrow-right"></i>
+        </a>
+    </div>
+
+    <div class="row g-4">
+        @foreach (var product in trendingProducts)
+        {
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="product-card" data-href="@Url.Action("Details", "Shop", new { slug = product.Slug })">
+                    <a asp-controller="Shop" asp-action="Details" asp-route-slug="@product.Slug" class="product-img-wrap">
+                        <img src="@product.PrimaryImageUrl" alt="@product.Name" loading="lazy" />
+                        <div class="product-badges">
+                            @if (product.DiscountPercentage > 0)
+                            {
+                                <span class="badge-discount">-@product.DiscountPercentage%</span>
+                            }
+                        </div>
+                        <button type="button" class="wishlist-btn-corner @(product.IsInWishlist ? "active" : "")" onclick="toggleWishlist(@product.Id, this); event.stopPropagation();" title="Add to Wishlist">
+                            <i class="bi @(product.IsInWishlist ? "bi-heart-fill" : "bi-heart")"></i>
+                        </button>
+                    </a>
+
+                    <div class="product-body">
+                        <div class="product-category">@product.CategoryName</div>
+                        <a asp-controller="Shop" asp-action="Details" asp-route-slug="@product.Slug" class="product-title" title="@product.Name">
+                            @product.Name
+                        </a>
+
+                        <div class="rating-stars mb-2">
+                            @for (int i = 1; i <= 5; i++)
+                            {
+                                if (i <= Math.Floor(product.AverageRating))
+                                {
+                                    <i class="bi bi-star-fill"></i>
+                                }
+                                else if (i - product.AverageRating <= 0.5)
+                                {
+                                    <i class="bi bi-star-half"></i>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-star"></i>
+                                }
+                            }
+                            <span class="rating-count ms-1">(@product.TotalReviews)</span>
+                        </div>
+
+                        <div class="product-price-row">
+                            <div>
+                                <span class="price-current">₹@product.EffectivePrice.ToString("N0")</span>
+                                @if (product.DiscountPrice.HasValue && product.DiscountPrice.Value < product.BasePrice)
+                                {
+                                    <span class="price-old">₹@product.BasePrice.ToString("N0")</span>
+                                }
+                            </div>
+                            <button type="button" class="btn-add-cart-mini" onclick="addToCart(@product.Id); event.stopPropagation();" title="Add to Cart">
+                                <i class="bi bi-bag-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // Real-Time 24-Hour Flash Sale Reverse Countdown Timer
+    function startFlashSaleTimer() {
+        const hEl = document.getElementById('timerHours');
+        const mEl = document.getElementById('timerMinutes');
+        const sEl = document.getElementById('timerSeconds');
+
+        if (!hEl || !mEl || !sEl) return;
+
+        function updateTimer() {
+            const now = new Date();
+            // Calculate time until next midnight (IST / Local)
+            const midnight = new Date(now);
+            midnight.setHours(24, 0, 0, 0);
+
+            let diffMs = midnight - now;
+            if (diffMs <= 0) {
+                diffMs = 24 * 60 * 60 * 1000; // Reset for next cycle
+            }
+
+            const hours = Math.floor(diffMs / (1000 * 60 * 60));
+            const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+            hEl.innerText = String(hours).padStart(2, '0');
+            mEl.innerText = String(minutes).padStart(2, '0');
+            sEl.innerText = String(seconds).padStart(2, '0');
+        }
+
+        updateTimer();
+        setInterval(updateTimer, 1000);
+    }
+
+    window.addEventListener('DOMContentLoaded', startFlashSaleTimer);
+</script>
+}

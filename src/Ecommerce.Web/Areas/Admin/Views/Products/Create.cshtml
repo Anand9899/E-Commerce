@@ -1,0 +1,278 @@
+@model CreateEditProductVM
+@{
+    ViewData["Title"] = "Add New Product";
+}
+
+<div class="card border rounded-4 shadow-sm p-4 p-md-5 bg-white max-w-1000 mx-auto">
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+        <div>
+            <h4 class="fw-bold mb-1">Create New Product</h4>
+            <p class="text-muted small mb-0">Add details, media, pricing, and multi-attribute variants</p>
+        </div>
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+            <i class="bi bi-arrow-left me-1"></i> Back to Products
+        </a>
+    </div>
+
+    <form asp-action="Create" method="post" id="productForm">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+        <!-- Section 1: Basic Information -->
+        <h5 class="fw-bold text-dark mb-3 pb-2 border-bottom"><i class="bi bi-info-circle me-2 text-primary"></i>Basic Information</h5>
+        <div class="row g-3 mb-4">
+            <div class="col-md-8">
+                <label class="form-label fw-semibold">Product Title *</label>
+                <input asp-for="Name" id="productNameInput" class="form-control form-control-lg fs-6" placeholder="e.g. Apple Watch Ultra 2 (GPS + Cellular)" required />
+                <span asp-validation-for="Name" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Base SKU Code *</label>
+                <input asp-for="SKU" id="productSkuInput" class="form-control form-control-lg fs-6 text-uppercase" placeholder="e.g. APL-WTCH-U2" required />
+                <span asp-validation-for="SKU" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">Category *</label>
+                <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-select" required>
+                    <option value="">-- Select Category --</option>
+                </select>
+                <span asp-validation-for="CategoryId" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">Brand (Optional)</label>
+                <select asp-for="BrandId" asp-items="ViewBag.Brands" class="form-select">
+                    <option value="">-- Select Brand --</option>
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Default MRP Price (₹) *</label>
+                <input asp-for="BasePrice" id="productBasePrice" class="form-control" type="number" step="0.01" placeholder="99999" required />
+                <span asp-validation-for="BasePrice" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Discounted Selling Price (₹)</label>
+                <input asp-for="DiscountPrice" id="productDiscountPrice" class="form-control" type="number" step="0.01" placeholder="89999" />
+                <span asp-validation-for="DiscountPrice" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Default Total Stock *</label>
+                <input asp-for="StockQuantity" id="productTotalStock" class="form-control" type="number" placeholder="50" required />
+                <span class="form-text small text-muted">Auto-sums when variants are added</span>
+            </div>
+        </div>
+
+        <!-- Section 2: Media & Description -->
+        <h5 class="fw-bold text-dark mb-3 pb-2 border-bottom"><i class="bi bi-images me-2 text-primary"></i>Media & Content</h5>
+        <div class="row g-3 mb-4">
+            <div class="col-12">
+                <label class="form-label fw-semibold">Primary Image URL *</label>
+                <input asp-for="PrimaryImageUrl" class="form-control" placeholder="https://images.unsplash.com/..." required />
+            </div>
+
+            <div class="col-12">
+                <label class="form-label fw-semibold">Additional Image URLs (One per line or comma-separated)</label>
+                <textarea asp-for="AdditionalImageUrls" class="form-control" rows="2" placeholder="https://image2.jpg&#10;https://image3.jpg"></textarea>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label fw-semibold">Short Catchy Summary</label>
+                <input asp-for="ShortDescription" class="form-control" placeholder="Key feature highlights in 1-2 lines..." />
+            </div>
+
+            <div class="col-12">
+                <label class="form-label fw-semibold">Comprehensive Product Description *</label>
+                <textarea asp-for="Description" class="form-control" rows="4" placeholder="Detailed product specifications, box contents, warranty terms..." required></textarea>
+                <span asp-validation-for="Description" class="text-danger small"></span>
+            </div>
+        </div>
+
+        <!-- Section 3: Advanced Product Variants Matrix -->
+        <div class="p-4 bg-light rounded-4 border mb-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                <div>
+                    <h5 class="fw-bold text-dark mb-1"><i class="bi bi-diagram-3-fill me-2 text-primary"></i>Product Variants & Stock Matrix</h5>
+                    <p class="text-muted small mb-0">Define sizes, colors, storage options, custom pricing, and individual stock quantities</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="addVariantRow()">
+                        <i class="bi bi-plus-circle me-1"></i> Add Custom Variant
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Preset Builders -->
+            <div class="bg-white p-3 rounded-3 border mb-3">
+                <span class="fw-bold small text-secondary d-block mb-2"><i class="bi bi-magic me-1"></i>Quick Preset Generator:</span>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-sm btn-light border rounded-pill" onclick="generatePresets('sizes')">
+                        <i class="bi bi-tags me-1 text-primary"></i> Standard Sizes (S, M, L, XL, XXL)
+                    </button>
+                    <button type="button" class="btn btn-sm btn-light border rounded-pill" onclick="generatePresets('colors')">
+                        <i class="bi bi-palette me-1 text-danger"></i> Popular Colors (Black, White, Navy, Red)
+                    </button>
+                    <button type="button" class="btn btn-sm btn-light border rounded-pill" onclick="generatePresets('storage')">
+                        <i class="bi bi-hdd me-1 text-success"></i> Storage (128GB, 256GB, 512GB)
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger border rounded-pill ms-auto" onclick="clearAllVariants()">
+                        <i class="bi bi-trash me-1"></i> Clear Variants
+                    </button>
+                </div>
+            </div>
+
+            <!-- Variants Table -->
+            <div class="table-responsive bg-white rounded-3 border">
+                <table class="table table-hover align-middle mb-0" id="variantsTable">
+                    <thead class="table-light">
+                        <tr class="small text-uppercase">
+                            <th style="width: 30%;">Variant Name / Option *</th>
+                            <th style="width: 25%;">SKU Code</th>
+                            <th style="width: 18%;">Price (₹) *</th>
+                            <th style="width: 15%;">Stock *</th>
+                            <th style="width: 7%;" class="text-center">Active</th>
+                            <th style="width: 5%;" class="text-center"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="variantRowsContainer">
+                        <!-- Populated dynamically via JS or existing model -->
+                    </tbody>
+                </table>
+                <div id="noVariantsAlert" class="text-center p-4 text-muted">
+                    <i class="bi bi-box-seam fs-3 text-secondary mb-2 d-block"></i>
+                    No variants added. This product will use standard single price & stock.
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: Visibility & Settings -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="form-check form-switch p-3 bg-light rounded-3 border">
+                    <input asp-for="IsFeatured" class="form-check-input ms-0 me-3" type="checkbox" id="featuredCheck" />
+                    <label class="form-check-label fw-semibold" for="featuredCheck">Feature on Homepage</label>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="form-check form-switch p-3 bg-light rounded-3 border">
+                    <input asp-for="IsActive" class="form-check-input ms-0 me-3" type="checkbox" id="activeCheck" checked />
+                    <label class="form-check-label fw-semibold" for="activeCheck">Active & Ready to Sell</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-3 pt-3 border-top">
+            <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 fw-bold shadow-sm">
+                <i class="bi bi-check-lg me-1"></i> Publish Product
+            </button>
+            <a asp-action="Index" class="btn btn-light btn-lg rounded-pill px-4">Cancel</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+<script>
+    let variantIndex = 0;
+
+    function addVariantRow(name = '', sku = '', price = '', stock = 10, isActive = true) {
+        const defaultPrice = price || document.getElementById('productDiscountPrice').value || document.getElementById('productBasePrice').value || '999';
+        const baseSku = document.getElementById('productSkuInput').value || 'SKU';
+        const autoSku = sku || (name ? `${baseSku}-${name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().substring(0, 6)}` : `${baseSku}-${variantIndex + 1}`);
+
+        const tbody = document.getElementById('variantRowsContainer');
+        const row = document.createElement('tr');
+        row.id = `variant_row_${variantIndex}`;
+        row.innerHTML = `
+            <td>
+                <input type="hidden" name="Variants[${variantIndex}].Id" value="0" />
+                <input type="text" name="Variants[${variantIndex}].VariantName" value="${name}" class="form-control form-control-sm variant-name-input" placeholder="e.g. Size: XL or Color: Blue" required />
+            </td>
+            <td>
+                <input type="text" name="Variants[${variantIndex}].SKU" value="${autoSku}" class="form-control form-control-sm text-uppercase" placeholder="SKU-VAR" />
+            </td>
+            <td>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text">₹</span>
+                    <input type="number" step="0.01" name="Variants[${variantIndex}].Price" value="${defaultPrice}" class="form-control" required />
+                </div>
+            </td>
+            <td>
+                <input type="number" name="Variants[${variantIndex}].StockQuantity" value="${stock}" class="form-control form-control-sm variant-stock-input" onchange="recalcTotalStock()" required />
+            </td>
+            <td class="text-center">
+                <input type="checkbox" name="Variants[${variantIndex}].IsActive" value="true" class="form-check-input" ${isActive ? 'checked' : ''} />
+                <input type="hidden" name="Variants[${variantIndex}].IsActive" value="false" />
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-outline-danger btn-sm border-0 rounded-circle" onclick="removeVariantRow(${variantIndex})" title="Remove Variant">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        `;
+
+        tbody.appendChild(row);
+        variantIndex++;
+        updateTableVisibility();
+        recalcTotalStock();
+    }
+
+    function removeVariantRow(idx) {
+        const row = document.getElementById(`variant_row_${idx}`);
+        if (row) {
+            row.remove();
+            updateTableVisibility();
+            recalcTotalStock();
+        }
+    }
+
+    function clearAllVariants() {
+        document.getElementById('variantRowsContainer').innerHTML = '';
+        updateTableVisibility();
+        recalcTotalStock();
+    }
+
+    function updateTableVisibility() {
+        const count = document.getElementById('variantRowsContainer').children.length;
+        document.getElementById('noVariantsAlert').style.display = count > 0 ? 'none' : 'block';
+    }
+
+    function recalcTotalStock() {
+        const stockInputs = document.querySelectorAll('.variant-stock-input');
+        if (stockInputs.length > 0) {
+            let total = 0;
+            stockInputs.forEach(input => {
+                total += parseInt(input.value) || 0;
+            });
+            document.getElementById('productTotalStock').value = total;
+        }
+    }
+
+    function generatePresets(type) {
+        const basePrice = document.getElementById('productDiscountPrice').value || document.getElementById('productBasePrice').value || '1499';
+        const baseSku = document.getElementById('productSkuInput').value || 'PRD';
+
+        if (type === 'sizes') {
+            const sizes = ['S (Small)', 'M (Medium)', 'L (Large)', 'XL (Extra Large)', 'XXL (2X-Large)'];
+            sizes.forEach(s => addVariantRow(s, `${baseSku}-${s.split(' ')[0]}`, basePrice, 15));
+        } else if (type === 'colors') {
+            const colors = ['Midnight Black', 'Pearl White', 'Navy Blue', 'Crimson Red'];
+            colors.forEach(c => addVariantRow(`Color: ${c}`, `${baseSku}-${c.substring(0, 3).toUpperCase()}`, basePrice, 20));
+        } else if (type === 'storage') {
+            const storage = [
+                { name: '128 GB Storage', priceDiff: 0 },
+                { name: '256 GB Storage', priceDiff: 5000 },
+                { name: '512 GB Storage', priceDiff: 15000 }
+            ];
+            storage.forEach(st => {
+                const finalP = parseFloat(basePrice) + st.priceDiff;
+                addVariantRow(st.name, `${baseSku}-${st.name.substring(0, 5).replace(' ', '')}`, finalP, 10);
+            });
+        }
+    }
+</script>
+}

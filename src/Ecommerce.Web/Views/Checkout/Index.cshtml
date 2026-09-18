@@ -1,0 +1,871 @@
+@model CheckoutVM
+@{
+    ViewData["Title"] = "Secure Checkout";
+}
+
+<div class="container my-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb small">
+            <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Home</a></li>
+            <li class="breadcrumb-item"><a asp-controller="Cart" asp-action="Index">Cart</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Checkout</li>
+        </ol>
+    </nav>
+
+    <h2 class="fw-bold mb-4">Complete Your Order</h2>
+
+    <form asp-action="PlaceOrder" method="post" id="checkoutForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="PaymentTransactionId" id="hiddenPaymentTxId" />
+        <input type="hidden" asp-for="PaymentGatewayResponse" id="hiddenPaymentGatewayResponse" />
+        <input type="hidden" asp-for="DirectProductId" />
+        <input type="hidden" asp-for="DirectVariantId" />
+        <input type="hidden" asp-for="DirectQuantity" />
+
+        <div class="row g-4">
+            <!-- Left Side: Shipping Address & Payment Selection -->
+            <div class="col-lg-8">
+                <!-- Step 1: Shipping Address -->
+                <div class="checkout-card shadow-sm mb-4">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="badge bg-primary rounded-circle p-2 fs-6">1</span>
+                        <h5 class="fw-bold mb-0">Shipping Address</h5>
+                    </div>
+
+                    @if (Model.SavedAddresses.Count > 0)
+                    {
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold text-muted small">Choose from saved delivery addresses:</label>
+                            <div class="row g-3">
+                                @foreach (var addr in Model.SavedAddresses)
+                                {
+                                    <div class="col-md-6">
+                                        <div class="card p-3 border rounded-3 h-100 position-relative @(Model.SelectedAddressId == addr.Id ? "border-primary bg-primary-subtle bg-opacity-10" : "")">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="SelectedAddressId" id="addr_@addr.Id" value="@addr.Id" @(Model.SelectedAddressId == addr.Id ? "checked" : "") onchange="fillAddressDetails('@addr.FullName', '@addr.PhoneNumber', '@addr.AddressLine1', '@addr.AddressLine2', '@addr.City', '@addr.State', '@addr.PostalCode')">
+                                                <label class="form-check-label fw-bold" for="addr_@addr.Id">
+                                                    @addr.FullName
+                                                    @if (addr.IsDefault)
+                                                    {
+                                                        <span class="badge bg-success-subtle text-success small ms-1">Default</span>
+                                                    }
+                                                </label>
+                                            </div>
+                                            <div class="text-muted small mt-2 ps-4">
+                                                <div>@addr.AddressLine1 @addr.AddressLine2</div>
+                                                <div>@addr.City, @addr.State - @addr.PostalCode</div>
+                                                <div>Phone: @addr.PhoneNumber</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <div class="border-top pt-3 mt-3">
+                        <h6 class="fw-bold mb-3 text-secondary">Address Details</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Recipient Full Name *</label>
+                                <input asp-for="ShippingFullName" id="inputFullName" class="form-control" required />
+                                <span asp-validation-for="ShippingFullName" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Mobile Phone Number *</label>
+                                <input asp-for="ShippingPhone" id="inputPhone" class="form-control" required />
+                                <span asp-validation-for="ShippingPhone" class="text-danger small"></span>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Street Address / Flat / Building *</label>
+                                <input asp-for="ShippingAddressLine1" id="inputAddress1" class="form-control" placeholder="House/Flat No., Street Name" required />
+                                <span asp-validation-for="ShippingAddressLine1" class="text-danger small"></span>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">Landmark / Area (Optional)</label>
+                                <input asp-for="ShippingAddressLine2" id="inputAddress2" class="form-control" placeholder="Near City Mall, Landmark" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">City *</label>
+                                <input asp-for="ShippingCity" id="inputCity" class="form-control" required />
+                                <span asp-validation-for="ShippingCity" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">State *</label>
+                                <input asp-for="ShippingState" id="inputState" class="form-control" required />
+                                <span asp-validation-for="ShippingState" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">PIN / Postal Code *</label>
+                                <input asp-for="ShippingPostalCode" id="inputPostal" class="form-control" required />
+                                <span asp-validation-for="ShippingPostalCode" class="text-danger small"></span>
+                            </div>
+                        </div>
+
+                        <div class="form-check mt-3">
+                            <input asp-for="SaveAddressForFuture" class="form-check-input" type="checkbox" id="saveAddrCheck" />
+                            <label class="form-check-label small" for="saveAddrCheck">
+                                Save this address to my address book for faster checkout
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Payment Method -->
+                <div class="checkout-card shadow-sm">
+                    <div class="mb-3">
+                        <h5 class="fw-bold mb-0">Select Payment Method</h5>
+                    </div>
+
+                    <div class="d-flex flex-column gap-3">
+                        <!-- UPI -->
+                        <div class="card p-3 border rounded-3 @(Model.PaymentMethod == PaymentMethod.UPI ? "border-primary bg-light bg-opacity-25" : "")" id="upiOptionCard">
+                            <div class="form-check d-flex align-items-center justify-content-between">
+                                <div>
+                                    <input class="form-check-input payment-radio" type="radio" asp-for="PaymentMethod" id="payUPI" value="UPI" checked />
+                                    <label class="form-check-label fw-bold ms-2" for="payUPI">
+                                        UPI (Google Pay, PhonePe, Paytm, QR)
+                                    </label>
+                                    <small class="d-block text-muted ms-4">Instant payment using any UPI app</small>
+                                </div>
+                                <i class="bi bi-qr-code fs-3 text-primary"></i>
+                            </div>
+
+                            <!-- UPI QR Code Display Section -->
+                            <div id="upiQrContainer" class="mt-3 pt-3 border-top" style="@(Model.PaymentMethod == PaymentMethod.UPI ? "" : "display:none;")">
+                                <div class="bg-white p-3 rounded-3 border text-center shadow-sm">
+                                    <div class="d-inline-flex align-items-center gap-2 badge bg-primary-subtle text-primary mb-2 px-3 py-2 rounded-pill fs-7">
+                                        <i class="bi bi-qr-code-scan fs-6"></i>
+                                        <span class="fw-bold">Scan & Pay via UPI</span>
+                                    </div>
+                                    <p class="small text-muted mb-3">Open any UPI app on your phone, scan this QR code to pay <strong class="text-dark">₹@Model.Cart.GrandTotal.ToString("N2")</strong>, then click <strong>Place Order</strong>.</p>
+                                    
+                                    <div class="d-inline-block p-3 bg-white rounded-4 border shadow-sm mb-3">
+                                        <img src="~/images/upi-qr.jpg" alt="UPI Payment QR Code" class="img-fluid rounded-3" style="max-width: 230px; width: 100%; aspect-ratio: 1/1; object-fit: contain;" />
+                                    </div>
+
+                                    <div class="bg-light p-2 rounded-3 border mb-3 text-start small">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="text-muted">Payable Amount:</span>
+                                            <span class="fw-bold text-primary fs-6">₹@Model.Cart.GrandTotal.ToString("N2")</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center text-muted">
+                                            <span>Accepted Apps:</span>
+                                            <span class="fw-semibold text-dark">GPay, PhonePe, Paytm, BHIM, Cred</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex flex-wrap justify-content-center gap-2 mb-3">
+                                        <span class="badge bg-light text-secondary border px-2 py-1"><i class="bi bi-google text-primary me-1"></i>Google Pay</span>
+                                        <span class="badge bg-light text-secondary border px-2 py-1"><i class="bi bi-phone text-purple me-1" style="color: #5f259f;"></i>PhonePe</span>
+                                        <span class="badge bg-light text-secondary border px-2 py-1"><i class="bi bi-wallet2 text-info me-1"></i>Paytm</span>
+                                        <span class="badge bg-light text-secondary border px-2 py-1"><i class="bi bi-shield-check text-success me-1"></i>BHIM UPI</span>
+                                    </div>
+
+                                    <!-- UPI Transaction ID / UTR Input -->
+                                    <div class="bg-primary bg-opacity-10 border border-primary-subtle rounded-3 p-3 text-start">
+                                        <label class="form-label fw-bold small text-dark mb-1" for="inputUpiTxId">
+                                            <i class="bi bi-receipt text-primary me-1"></i> UPI Transaction Reference / UTR No. (Optional / Recommended):
+                                        </label>
+                                        <input asp-for="UpiTransactionId" class="form-control form-control-sm border-primary" id="inputUpiTxId" placeholder="e.g. 423589123456 (12-digit UPI Ref)" maxlength="35" />
+                                        <div class="form-text small text-muted mt-1">
+                                            <i class="bi bi-info-circle me-1"></i> Enter the 12-digit UTR from your UPI payment receipt for instantaneous payment verification.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card -->
+                        <div class="card p-3 border rounded-3" id="cardOptionCard">
+                            <div class="form-check d-flex align-items-center justify-content-between">
+                                <div>
+                                    <input class="form-check-input payment-radio" type="radio" asp-for="PaymentMethod" id="payCard" value="CreditOrDebitCard" />
+                                    <label class="form-check-label fw-bold ms-2" for="payCard">
+                                        Credit / Debit Cards
+                                    </label>
+                                    <small class="d-block text-muted ms-4">Visa, Mastercard, RuPay & American Express</small>
+                                </div>
+                                <i class="bi bi-credit-card-2-front fs-3 text-success"></i>
+                            </div>
+                        </div>
+
+                        <!-- NetBanking -->
+                        <div class="card p-3 border rounded-3" id="netBankingOptionCard">
+                            <div class="form-check d-flex align-items-center justify-content-between">
+                                <div>
+                                    <input class="form-check-input payment-radio" type="radio" asp-for="PaymentMethod" id="payNetBanking" value="NetBanking" />
+                                    <label class="form-check-label fw-bold ms-2" for="payNetBanking">
+                                        Net Banking (All Major Indian Banks)
+                                    </label>
+                                    <small class="d-block text-muted ms-4">HDFC, SBI, ICICI, Axis, Kotak & more</small>
+                                </div>
+                                <i class="bi bi-bank fs-3 text-info"></i>
+                            </div>
+                        </div>
+
+                        <!-- COD (Automatically hidden for orders above ₹15,000) -->
+                        @if (Model.Cart.GrandTotal <= 15000)
+                        {
+                            <div class="card p-3 border rounded-3" id="codOptionCard">
+                                <div class="form-check d-flex align-items-center justify-content-between">
+                                    <div>
+                                        <input class="form-check-input payment-radio" type="radio" asp-for="PaymentMethod" id="payCOD" value="CashOnDelivery" />
+                                        <label class="form-check-label fw-bold ms-2" for="payCOD">
+                                            Cash On Delivery (COD)
+                                        </label>
+                                        <small class="d-block text-muted ms-4">Pay in cash or digital scan upon delivery</small>
+                                    </div>
+                                    <i class="bi bi-cash-stack fs-3 text-warning"></i>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mt-4">
+                        <label class="form-label fw-semibold">Order Instructions / Delivery Notes (Optional)</label>
+                        <textarea asp-for="CustomerNotes" class="form-control" rows="2" placeholder="e.g. Leave package with security guard..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Order Summary -->
+            <div class="col-lg-4">
+                <div class="order-summary-box shadow-sm sticky-top" style="top: 100px;">
+                    <h5 class="fw-bold mb-3">Order Items (@Model.Cart.TotalQuantity)</h5>
+
+                    <div class="d-flex flex-column gap-3 mb-4 max-vh-40 overflow-auto pe-1">
+                        @foreach (var item in Model.Cart.Items)
+                        {
+                            <div class="d-flex align-items-center gap-3">
+                                <img src="@item.ImageUrl" alt="@item.ProductName" class="rounded-3 border" style="width: 50px; height: 50px; object-fit: cover;" />
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0 fw-semibold text-truncate small" style="max-width: 180px;">@item.ProductName</h6>
+                                    <small class="text-muted">Qty: @item.Quantity × ₹@item.UnitPrice.ToString("N0")</small>
+                                </div>
+                                <span class="fw-bold small">₹@item.TotalPrice.ToString("N0")</span>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Cartivo Wallet & Rewards Redemption Card -->
+                    @if (Model.AvailableWalletBalance > 0 || Model.AvailableLoyaltyPoints > 0)
+                    {
+                        <div class="card border rounded-3 p-3 mb-3 bg-light shadow-sm">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-bold text-dark small"><i class="bi bi-wallet2 text-primary me-1"></i> Cartivo Wallet & Rewards</span>
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">₹@Model.AvailableWalletBalance.ToString("N2")</span>
+                            </div>
+                            <div class="form-check">
+                                <input asp-for="UseWalletBalance" class="form-check-input" type="checkbox" id="chkUseWallet" />
+                                <label class="form-check-label small fw-bold text-dark" for="chkUseWallet">
+                                    Use Wallet Balance
+                                </label>
+                            </div>
+                            <div class="text-muted small mt-1" style="font-size: 0.78rem;">
+                                Apply up to <strong>₹@Math.Min(Model.AvailableWalletBalance, Model.Cart.GrandTotal).ToString("N2")</strong> from your wallet cash.
+                            </div>
+                            @if (Model.AvailableLoyaltyPoints > 0)
+                            {
+                                <div class="mt-2 pt-2 border-top d-flex justify-content-between align-items-center small">
+                                    <span class="text-muted"><i class="bi bi-stars text-warning me-1"></i>Loyalty Points:</span>
+                                    <span class="fw-bold text-dark">@Model.AvailableLoyaltyPoints Pts</span>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <div class="border-top pt-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Subtotal</span>
+                            <span class="fw-semibold">₹@Model.Cart.SubTotal.ToString("N2")</span>
+                        </div>
+
+                        @if (Model.Cart.DiscountAmount > 0)
+                        {
+                            <div class="d-flex justify-content-between mb-2 text-success">
+                                <span>Coupon Discount (@Model.Cart.AppliedCouponCode)</span>
+                                <span class="fw-semibold">-₹@Model.Cart.DiscountAmount.ToString("N2")</span>
+                            </div>
+                        }
+
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">GST (18%)</span>
+                            <span class="fw-semibold">₹@Model.Cart.TaxAmount.ToString("N2")</span>
+                        </div>
+
+                        <div class="d-flex justify-content-between mb-3 pb-3 border-bottom">
+                            <span class="text-muted">Shipping</span>
+                            <span class="fw-semibold text-success">@(Model.Cart.ShippingFee == 0 ? "FREE" : $"₹{Model.Cart.ShippingFee:N2}")</span>
+                        </div>
+
+                        <div class="d-flex justify-content-between mb-2 text-primary fw-semibold" id="walletDiscountRow" style="display: none !important;">
+                            <span><i class="bi bi-wallet2 me-1"></i>Wallet Deduction</span>
+                            <span id="walletDeductionDisplay">-₹0.00</span>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-baseline mb-4">
+                            <span class="fs-5 fw-bold">Payable Amount</span>
+                            <span class="fs-4 fw-bold text-primary" id="grandTotalDisplay">₹@Model.Cart.GrandTotal.ToString("N2")</span>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="button" id="btnProceedToPay" class="btn btn-primary btn-lg rounded-pill fw-bold py-3 shadow">
+                                <i class="bi bi-shield-lock-fill me-1"></i> <span id="btnPayText">Proceed to Pay ₹@Model.Cart.GrandTotal.ToString("N0")</span>
+                            </button>
+                        </div>
+
+                        <div class="d-flex align-items-center justify-content-center gap-2 mt-3 text-muted small">
+                            <i class="bi bi-shield-check text-success fs-6"></i>
+                            <span>256-Bit SSL Encrypted & Verified Checkout</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- ========================================================================= -->
+<!-- CARTIVO SECURE PAY - HIGH-FIDELITY PAYMENT GATEWAY SIMULATOR MODAL       -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="gatewaySimulatorModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <!-- Gateway Header -->
+            <div class="p-4 text-white position-relative" style="background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 50%, #003566 100%);">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="bg-primary bg-opacity-25 p-2 rounded-3 border border-primary border-opacity-50 text-white">
+                            <i class="bi bi-shield-check fs-2 text-warning"></i>
+                        </div>
+                        <div>
+                            <div class="d-flex align-items-center gap-2">
+                                <h5 class="fw-bold mb-0 text-white">Cartivo Secure Pay</h5>
+                                <span class="badge bg-warning text-dark fw-bold px-2 py-1 fs-8 text-uppercase">Sandbox Gateway</span>
+                            </div>
+                            <small class="text-white-50">256-Bit SSL Encrypted & Verified Banking Network</small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center mt-3 pt-3 border-top border-white border-opacity-10">
+                    <div>
+                        <span class="text-white-50 small d-block">Payable Amount:</span>
+                        <span class="fs-3 fw-bold text-white">₹@Model.Cart.GrandTotal.ToString("N2")</span>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-white bg-opacity-10 text-white border border-white border-opacity-20 px-3 py-2 rounded-pill small">
+                            <i class="bi bi-person-fill text-warning me-1"></i> @Model.ShippingFullName
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gateway Main Body -->
+            <div class="modal-body p-0" id="gatewayMainBody">
+                <div class="row g-0">
+                    <!-- Left Sidebar Nav -->
+                    <div class="col-md-4 bg-light border-end p-3">
+                        <span class="text-muted text-uppercase fw-bold fs-8 px-2 d-block mb-2">Payment Options</span>
+                        <div class="nav flex-column nav-pills gap-1" id="gatewayTab" role="tablist">
+                            <button class="nav-link active text-start py-3 px-3 rounded-3 d-flex align-items-center gap-2 border-0" id="tab-upi-btn" data-bs-toggle="pill" data-bs-target="#tab-upi" type="button" role="tab">
+                                <i class="bi bi-qr-code text-primary fs-5"></i>
+                                <div>
+                                    <div class="fw-bold text-dark fs-7">UPI / QR Code</div>
+                                    <small class="text-muted fs-8">GPay, PhonePe, Paytm, BHIM</small>
+                                </div>
+                            </button>
+                            <button class="nav-link text-start py-3 px-3 rounded-3 d-flex align-items-center gap-2 border-0" id="tab-card-btn" data-bs-toggle="pill" data-bs-target="#tab-card" type="button" role="tab">
+                                <i class="bi bi-credit-card-2-front text-success fs-5"></i>
+                                <div>
+                                    <div class="fw-bold text-dark fs-7">Cards (Debit/Credit)</div>
+                                    <small class="text-muted fs-8">Visa, Mastercard, RuPay</small>
+                                </div>
+                            </button>
+                            <button class="nav-link text-start py-3 px-3 rounded-3 d-flex align-items-center gap-2 border-0" id="tab-netbanking-btn" data-bs-toggle="pill" data-bs-target="#tab-netbanking" type="button" role="tab">
+                                <i class="bi bi-bank text-info fs-5"></i>
+                                <div>
+                                    <div class="fw-bold text-dark fs-7">Net Banking</div>
+                                    <small class="text-muted fs-8">HDFC, SBI, ICICI, Axis & more</small>
+                                </div>
+                            </button>
+                        </div>
+
+                        <!-- Sandbox Developer Notice -->
+                        <div class="bg-warning bg-opacity-10 border border-warning border-opacity-50 rounded-3 p-2 mt-4 text-center">
+                            <span class="badge bg-warning text-dark fw-bold mb-1">🧪 Test Sandbox</span>
+                            <p class="small text-muted mb-0" style="font-size: 11px;">
+                                Realistic simulator. No real money or bank account required!
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Right Tab Content -->
+                    <div class="col-md-8 p-4">
+                        <div class="tab-content" id="gatewayTabContent">
+                            
+                            <!-- 1. UPI TAB -->
+                            <div class="tab-pane fade show active" id="tab-upi" role="tabpanel">
+                                <div class="text-center">
+                                    <div class="d-inline-flex align-items-center gap-2 badge bg-primary-subtle text-primary mb-2 px-3 py-2 rounded-pill">
+                                        <i class="bi bi-qr-code-scan"></i>
+                                        <span class="fw-bold">Scan with any UPI App</span>
+                                    </div>
+                                    
+                                    <div class="my-3 position-relative d-inline-block p-3 bg-white rounded-4 border shadow-sm">
+                                        <img src="~/images/upi-qr.jpg" alt="UPI QR Code" class="img-fluid rounded-3" style="max-width: 170px; aspect-ratio: 1/1; object-fit: contain;" />
+                                        <div class="small text-muted mt-2">
+                                            <i class="bi bi-stopwatch text-danger me-1"></i>Expires in: <strong id="upiCountdown" class="text-dark">04:59</strong>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex flex-wrap justify-content-center gap-2 mb-3">
+                                        <span class="badge bg-light text-dark border px-2 py-1"><i class="bi bi-google text-primary me-1"></i>GPay</span>
+                                        <span class="badge bg-light text-dark border px-2 py-1"><i class="bi bi-phone text-purple me-1" style="color:#5f259f;"></i>PhonePe</span>
+                                        <span class="badge bg-light text-dark border px-2 py-1"><i class="bi bi-wallet2 text-info me-1"></i>Paytm</span>
+                                        <span class="badge bg-light text-dark border px-2 py-1"><i class="bi bi-shield-check text-success me-1"></i>BHIM</span>
+                                    </div>
+
+                                    <!-- Quick Simulator Action -->
+                                    <div class="d-grid gap-2 mb-3">
+                                        <button type="button" class="btn btn-success fw-bold py-2 rounded-pill shadow-sm" onclick="executeSimulatedPayment('UPI', 'Approved via GPay/PhonePe App')">
+                                            <i class="bi bi-check-circle-fill me-1"></i> Simulate UPI Payment Approval (Instant)
+                                        </button>
+                                    </div>
+
+                                    <!-- Enter UPI ID Option -->
+                                    <div class="text-start border-top pt-3">
+                                        <label class="form-label fw-semibold small text-muted mb-1">Or Enter UPI ID (VPA):</label>
+                                        <div class="input-group">
+                                            <input type="text" id="inputVpa" class="form-control" placeholder="e.g. yourname@oksbi" value="customer@upi" />
+                                            <button type="button" class="btn btn-outline-primary fw-semibold" onclick="executeSimulatedPayment('UPI', 'Paid via VPA ID')">Pay Now</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 2. CARDS TAB -->
+                            <div class="tab-pane fade" id="tab-card" role="tabpanel">
+                                <!-- Card Preview UI -->
+                                <div class="card p-3 rounded-4 text-white mb-3 shadow position-relative overflow-hidden" style="background: linear-gradient(135deg, #1d2d44 0%, #3e5c76 100%); min-height: 140px;">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <i class="bi bi-sim fs-3 text-warning"></i>
+                                        <span class="fw-bold font-monospace" id="cardBrandLabel">VISA / MASTERCARD</span>
+                                    </div>
+                                    <div class="fs-5 font-monospace fw-bold tracking-widest my-2" id="cardNumPreview">
+                                        4111 •••• •••• 1111
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-end small text-white-50 mt-2">
+                                        <div>
+                                            <div style="font-size: 9px;" class="text-uppercase">Cardholder</div>
+                                            <div class="fw-bold text-white text-uppercase" id="cardHolderPreview">@(string.IsNullOrWhiteSpace(Model.ShippingFullName) ? "CARD HOLDER" : Model.ShippingFullName)</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 9px;" class="text-uppercase">Expires</div>
+                                            <div class="fw-bold text-white font-monospace" id="cardExpPreview">12/28</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Quick Test Card Autofill Chips -->
+                                <div class="mb-3">
+                                    <span class="text-muted small fw-semibold d-block mb-1">1-Click Test Cards:</span>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill fs-8" onclick="fillTestCard('4111 1111 1111 1111', '12/28', '123', 'VISA')">Visa Test</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill fs-8" onclick="fillTestCard('5100 0000 0000 0000', '09/29', '456', 'MASTERCARD')">Mastercard</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill fs-8" onclick="fillTestCard('6061 0000 0000 0000', '11/30', '789', 'RUPAY')">RuPay Test</button>
+                                    </div>
+                                </div>
+
+                                <!-- Card Form Inputs -->
+                                <div class="row g-2">
+                                    <div class="col-12">
+                                        <label class="form-label small fw-semibold mb-1">Card Number</label>
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text"><i class="bi bi-credit-card"></i></span>
+                                            <input type="text" id="simCardNumber" class="form-control" value="4111 1111 1111 1111" maxlength="19" oninput="updateCardPreview()" />
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small fw-semibold mb-1">Expiry (MM/YY)</label>
+                                        <input type="text" id="simCardExp" class="form-control form-control-sm" value="12/28" maxlength="5" oninput="updateCardPreview()" />
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small fw-semibold mb-1">CVV / CVC</label>
+                                        <input type="password" id="simCardCvv" class="form-control form-control-sm" value="123" maxlength="4" />
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label small fw-semibold mb-1">Cardholder Name</label>
+                                        <input type="text" id="simCardName" class="form-control form-control-sm" value="@(string.IsNullOrWhiteSpace(Model.ShippingFullName) ? "Anand Mishra" : Model.ShippingFullName)" oninput="updateCardPreview()" />
+                                    </div>
+                                </div>
+
+                                <div class="d-grid mt-3">
+                                    <button type="button" class="btn btn-primary fw-bold py-2 rounded-pill shadow-sm" onclick="showCardOtpScreen()">
+                                        <i class="bi bi-lock-fill me-1"></i> Proceed to Bank 3D-Secure OTP
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 3. NETBANKING TAB -->
+                            <div class="tab-pane fade" id="tab-netbanking" role="tabpanel">
+                                <label class="form-label fw-semibold small text-muted mb-2">Select Your Bank:</label>
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <button type="button" class="btn btn-outline-light text-dark border w-100 p-2 text-start rounded-3 d-flex align-items-center gap-2 bank-btn active" onclick="selectBank(this, 'HDFC Bank')">
+                                            <i class="bi bi-building text-primary fs-5"></i>
+                                            <span class="small fw-bold">HDFC Bank</span>
+                                        </button>
+                                    </div>
+                                    <div class="col-6">
+                                        <button type="button" class="btn btn-outline-light text-dark border w-100 p-2 text-start rounded-3 d-flex align-items-center gap-2 bank-btn" onclick="selectBank(this, 'State Bank of India')">
+                                            <i class="bi bi-building text-info fs-5"></i>
+                                            <span class="small fw-bold">SBI</span>
+                                        </button>
+                                    </div>
+                                    <div class="col-6">
+                                        <button type="button" class="btn btn-outline-light text-dark border w-100 p-2 text-start rounded-3 d-flex align-items-center gap-2 bank-btn" onclick="selectBank(this, 'ICICI Bank')">
+                                            <i class="bi bi-building text-warning fs-5"></i>
+                                            <span class="small fw-bold">ICICI Bank</span>
+                                        </button>
+                                    </div>
+                                    <div class="col-6">
+                                        <button type="button" class="btn btn-outline-light text-dark border w-100 p-2 text-start rounded-3 d-flex align-items-center gap-2 bank-btn" onclick="selectBank(this, 'Axis Bank')">
+                                            <i class="bi bi-building text-danger fs-5"></i>
+                                            <span class="small fw-bold">Axis Bank</span>
+                                        </button>
+                                    </div>
+                                    <div class="col-6">
+                                        <button type="button" class="btn btn-outline-light text-dark border w-100 p-2 text-start rounded-3 d-flex align-items-center gap-2 bank-btn" onclick="selectBank(this, 'Kotak Mahindra')">
+                                            <i class="bi bi-building text-danger fs-5"></i>
+                                            <span class="small fw-bold">Kotak Bank</span>
+                                        </button>
+                                    </div>
+                                    <div class="col-6">
+                                        <button type="button" class="btn btn-outline-light text-dark border w-100 p-2 text-start rounded-3 d-flex align-items-center gap-2 bank-btn" onclick="selectBank(this, 'Punjab National Bank')">
+                                            <i class="bi bi-building text-success fs-5"></i>
+                                            <span class="small fw-bold">PNB</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="d-grid">
+                                    <button type="button" class="btn btn-primary fw-bold py-2 rounded-pill shadow-sm" id="btnNetBankingPay" onclick="executeSimulatedPayment('NetBanking', 'Authorized via NetBanking (' + selectedBankName + ')')">
+                                        Pay ₹@Model.Cart.GrandTotal.ToString("N0") via HDFC Bank
+                                    </button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3D-Secure Bank OTP Screen (Sub-view) -->
+            <div class="modal-body p-4 d-none" id="gatewayOtpBody">
+                <div class="max-w-md mx-auto text-center" style="max-width: 420px; margin: 0 auto;">
+                    <div class="d-inline-flex p-3 rounded-circle bg-primary bg-opacity-10 text-primary mb-3">
+                        <i class="bi bi-shield-lock-fill fs-1 text-primary"></i>
+                    </div>
+                    <h5 class="fw-bold mb-1">3D Secure Bank Verification</h5>
+                    <p class="text-muted small mb-3">
+                        A one-time password (OTP) has been sent to your registered mobile number ending with <strong>*8908</strong>.
+                    </p>
+
+                    <div class="bg-light p-3 rounded-3 border mb-3 text-start small">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Merchant:</span>
+                            <span class="fw-bold">Cartivo E-Commerce</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Amount:</span>
+                            <span class="fw-bold text-primary">₹@Model.Cart.GrandTotal.ToString("N2")</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Card:</span>
+                            <span class="fw-semibold font-monospace" id="otpCardMasked">•••• 1111</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 text-start">
+                        <label class="form-label fw-bold small text-dark mb-1">Enter 6-Digit OTP:</label>
+                        <input type="text" id="simulatedOtpInput" class="form-control form-control-lg text-center font-monospace fw-bold tracking-widest border-primary" value="123456" maxlength="6" />
+                        <div class="form-text small text-success mt-1">
+                            <i class="bi bi-info-circle me-1"></i> Sandbox Test OTP <strong>123456</strong> is pre-filled.
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-success btn-lg fw-bold rounded-pill shadow-sm" onclick="executeSimulatedPayment('CreditOrDebitCard', 'Card 3D-Secure Authorized')">
+                            <i class="bi bi-check-circle-fill me-1"></i> Confirm OTP & Pay ₹@Model.Cart.GrandTotal.ToString("N0")
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" onclick="backToCardForm()">
+                            Cancel & Back to Card Details
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Processing / Success Screen -->
+            <div class="modal-body p-5 text-center d-none" id="gatewayProcessingBody">
+                <div class="py-4">
+                    <div class="spinner-border text-primary mb-3" style="width: 3.5rem; height: 3.5rem;" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5 class="fw-bold mb-1" id="processingHeading">Contacting Banking Network...</h5>
+                    <p class="text-muted small mb-0" id="processingSubtext">Please do not refresh or close this window.</p>
+                </div>
+            </div>
+
+            <!-- Sandbox Toolbar Footer -->
+            <div class="modal-footer bg-light px-4 py-2 d-flex justify-content-between align-items-center">
+                <span class="small text-muted" style="font-size: 11px;">
+                    <i class="bi bi-cpu text-primary me-1"></i> Built-in Sandbox Payment Simulator v2.0
+                </span>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="simulateDecline()">
+                        Simulate Bank Decline
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3" onclick="executeSimulatedPayment('UPI', 'Instant 1-Click Sandbox Approval')">
+                        Instant Success (Fast)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let selectedBankName = "HDFC Bank";
+        let countdownSeconds = 299;
+        let countdownInterval = null;
+
+        function fillAddressDetails(name, phone, addr1, addr2, city, state, postal) {
+            document.getElementById('inputFullName').value = name || '';
+            document.getElementById('inputPhone').value = phone || '';
+            document.getElementById('inputAddress1').value = addr1 || '';
+            document.getElementById('inputAddress2').value = addr2 || '';
+            document.getElementById('inputCity').value = city || '';
+            document.getElementById('inputState').value = state || '';
+            document.getElementById('inputPostal').value = postal || '';
+        }
+
+        var originalGrandTotal = @Model.Cart.GrandTotal;
+        var availableWalletBalance = @Model.AvailableWalletBalance;
+
+        // Toggle UI for payment methods & wallet balance
+        function togglePaymentDisplay() {
+            var upiRadio = document.getElementById('payUPI');
+            var upiQrContainer = document.getElementById('upiQrContainer');
+            var upiOptionCard = document.getElementById('upiOptionCard');
+            var chkUseWallet = document.getElementById('chkUseWallet');
+            var walletDiscountRow = document.getElementById('walletDiscountRow');
+            var walletDeductionDisplay = document.getElementById('walletDeductionDisplay');
+            var grandTotalDisplay = document.getElementById('grandTotalDisplay');
+            var btnPayText = document.getElementById('btnPayText');
+            var payCOD = document.getElementById('payCOD');
+
+            if (upiRadio && upiRadio.checked) {
+                if (upiQrContainer) upiQrContainer.style.display = 'block';
+                if (upiOptionCard) upiOptionCard.classList.add('border-primary', 'bg-light', 'bg-opacity-25');
+            } else {
+                if (upiQrContainer) upiQrContainer.style.display = 'none';
+                if (upiOptionCard) upiOptionCard.classList.remove('border-primary', 'bg-light', 'bg-opacity-25');
+            }
+
+            var currentPayable = originalGrandTotal;
+
+            if (chkUseWallet && chkUseWallet.checked && availableWalletBalance > 0) {
+                var deduction = Math.min(availableWalletBalance, originalGrandTotal);
+                currentPayable = Math.max(0, originalGrandTotal - deduction);
+
+                if (walletDiscountRow) walletDiscountRow.style.setProperty('display', 'flex', 'important');
+                if (walletDeductionDisplay) walletDeductionDisplay.innerText = "-₹" + deduction.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            } else {
+                if (walletDiscountRow) walletDiscountRow.style.setProperty('display', 'none', 'important');
+            }
+
+            if (grandTotalDisplay) {
+                grandTotalDisplay.innerText = "₹" + currentPayable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            if (currentPayable === 0) {
+                if (btnPayText) btnPayText.innerText = "Pay ₹0.00 (Fully Paid via Wallet)";
+            } else if (payCOD && payCOD.checked) {
+                if (btnPayText) btnPayText.innerText = "Place Order (COD: ₹" + currentPayable.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ")";
+            } else {
+                if (btnPayText) btnPayText.innerText = "Proceed to Pay ₹" + currentPayable.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            }
+        }
+
+        document.querySelectorAll('input[name="PaymentMethod"]').forEach(function (radio) {
+            radio.addEventListener('change', togglePaymentDisplay);
+        });
+
+        var chkWalletInput = document.getElementById('chkUseWallet');
+        if (chkWalletInput) {
+            chkWalletInput.addEventListener('change', togglePaymentDisplay);
+        }
+
+        // Intercept Proceed to Pay button
+        document.getElementById('btnProceedToPay').addEventListener('click', function (e) {
+            var form = document.getElementById('checkoutForm');
+            if (!form.reportValidity()) {
+                return; // HTML5 validation failed
+            }
+
+            var chkUseWallet = document.getElementById('chkUseWallet');
+            var isWalletUsed = chkUseWallet && chkUseWallet.checked;
+            var currentPayable = originalGrandTotal;
+            if (isWalletUsed && availableWalletBalance > 0) {
+                currentPayable = Math.max(0, originalGrandTotal - Math.min(availableWalletBalance, originalGrandTotal));
+            }
+
+            // If payable is 0 (fully covered by wallet balance), submit immediately!
+            if (currentPayable === 0) {
+                form.submit();
+                return;
+            }
+
+            var selectedMethod = document.querySelector('input[name="PaymentMethod"]:checked')?.value || "UPI";
+
+            if (selectedMethod === "CashOnDelivery") {
+                // Submit directly for COD
+                form.submit();
+            } else {
+                // Open Gateway Simulator Modal
+                openGatewayModal(selectedMethod);
+            }
+        });
+
+        function openGatewayModal(method) {
+            resetGatewayViews();
+            
+            // Switch to appropriate tab
+            if (method === "CreditOrDebitCard") {
+                var cardTabBtn = document.getElementById('tab-card-btn');
+                if (cardTabBtn) bootstrap.Tab.getOrCreateInstance(cardTabBtn).show();
+            } else if (method === "NetBanking") {
+                var nbTabBtn = document.getElementById('tab-netbanking-btn');
+                if (nbTabBtn) bootstrap.Tab.getOrCreateInstance(nbTabBtn).show();
+            } else {
+                var upiTabBtn = document.getElementById('tab-upi-btn');
+                if (upiTabBtn) bootstrap.Tab.getOrCreateInstance(upiTabBtn).show();
+            }
+
+            startUpiCountdown();
+            var modal = new bootstrap.Modal(document.getElementById('gatewaySimulatorModal'));
+            modal.show();
+        }
+
+        function resetGatewayViews() {
+            document.getElementById('gatewayMainBody').classList.remove('d-none');
+            document.getElementById('gatewayOtpBody').classList.add('d-none');
+            document.getElementById('gatewayProcessingBody').classList.add('d-none');
+        }
+
+        function startUpiCountdown() {
+            clearInterval(countdownInterval);
+            countdownSeconds = 299;
+            var timerEl = document.getElementById('upiCountdown');
+            countdownInterval = setInterval(function () {
+                var m = Math.floor(countdownSeconds / 60);
+                var s = countdownSeconds % 60;
+                if (timerEl) {
+                    timerEl.innerText = (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+                }
+                if (countdownSeconds <= 0) {
+                    clearInterval(countdownInterval);
+                }
+                countdownSeconds--;
+            }, 1000);
+        }
+
+        // Test card autofill
+        function fillTestCard(number, exp, cvv, brand) {
+            document.getElementById('simCardNumber').value = number;
+            document.getElementById('simCardExp').value = exp;
+            document.getElementById('simCardCvv').value = cvv;
+            document.getElementById('cardBrandLabel').innerText = brand;
+            updateCardPreview();
+        }
+
+        function updateCardPreview() {
+            var num = document.getElementById('simCardNumber').value || "•••• •••• •••• ••••";
+            var exp = document.getElementById('simCardExp').value || "12/28";
+            var name = document.getElementById('simCardName').value || "CARD HOLDER";
+            
+            document.getElementById('cardNumPreview').innerText = num;
+            document.getElementById('cardExpPreview').innerText = exp;
+            document.getElementById('cardHolderPreview').innerText = name;
+        }
+
+        function showCardOtpScreen() {
+            var num = document.getElementById('simCardNumber').value || "4111";
+            var last4 = num.replace(/\s+/g, '').slice(-4) || "1111";
+            document.getElementById('otpCardMasked').innerText = "•••• " + last4;
+
+            document.getElementById('gatewayMainBody').classList.add('d-none');
+            document.getElementById('gatewayOtpBody').classList.remove('d-none');
+        }
+
+        function backToCardForm() {
+            document.getElementById('gatewayOtpBody').classList.add('d-none');
+            document.getElementById('gatewayMainBody').classList.remove('d-none');
+        }
+
+        function selectBank(btn, bankName) {
+            selectedBankName = bankName;
+            document.querySelectorAll('.bank-btn').forEach(b => b.classList.remove('active', 'border-primary', 'bg-primary-subtle'));
+            btn.classList.add('active', 'border-primary', 'bg-primary-subtle');
+            document.getElementById('btnNetBankingPay').innerText = "Pay ₹@Model.Cart.GrandTotal.ToString("N0") via " + bankName;
+        }
+
+        // Execute Simulated Payment & Submit Form
+        function executeSimulatedPayment(method, responseNote) {
+            // Show processing screen
+            document.getElementById('gatewayMainBody').classList.add('d-none');
+            document.getElementById('gatewayOtpBody').classList.add('d-none');
+            document.getElementById('gatewayProcessingBody').classList.remove('d-none');
+
+            document.getElementById('processingHeading').innerText = "Authorizing ₹@Model.Cart.GrandTotal.ToString("N2")...";
+            document.getElementById('processingSubtext').innerText = "Communicating with simulated bank server...";
+
+            setTimeout(function () {
+                document.getElementById('processingHeading').innerText = "Payment Successful!";
+                document.getElementById('processingSubtext').innerText = "Generating order receipt and confirming...";
+
+                // Generate realistic Transaction Reference ID
+                var randomDigits = Math.floor(10000000 + Math.random() * 90000000);
+                var txId = "PAY-SIM-" + randomDigits;
+
+                document.getElementById('hiddenPaymentTxId').value = txId;
+                document.getElementById('hiddenPaymentGatewayResponse').value = responseNote + " (" + txId + ")";
+
+                // Set PaymentMethod radio to match the chosen online payment
+                var radio = document.querySelector('input[name="PaymentMethod"][value="' + method + '"]');
+                if (radio) radio.checked = true;
+
+                setTimeout(function () {
+                    document.getElementById('checkoutForm').submit();
+                }, 700);
+            }, 1200);
+        }
+
+        function simulateDecline() {
+            Swal.fire({
+                icon: 'error',
+                title: 'Transaction Declined (Simulated)',
+                text: 'The simulated bank returned: Insufficient funds or invalid card status. Please try another payment method.',
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Try Again'
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', togglePaymentDisplay);
+    </script>
+}

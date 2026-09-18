@@ -1,0 +1,586 @@
+@model ProductDetailVM
+@{
+    ViewData["Title"] = Model.Name;
+    bool canReview = ViewBag.CanReview ?? false;
+}
+
+<div class="container my-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb small">
+            <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Home</a></li>
+            <li class="breadcrumb-item"><a asp-controller="Shop" asp-action="Index">Shop</a></li>
+            <li class="breadcrumb-item"><a asp-controller="Shop" asp-action="Category" asp-route-slug="@Model.CategoryId">@Model.CategoryName</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@Model.Name</li>
+        </ol>
+    </nav>
+
+    <div class="row g-5">
+        <!-- Product Image Gallery -->
+        <div class="col-lg-6">
+            <div class="card border-0 rounded-4 overflow-hidden shadow-sm mb-3 position-relative">
+                <div class="position-relative bg-white text-center p-4" style="min-height: 420px; display: flex; align-items: center; justify-content: center;">
+                    <img id="mainProductImage" src="@(Model.Images.FirstOrDefault()?.ImageUrl ?? "/images/placeholder-product.png")" 
+                         alt="@Model.Name" class="img-fluid rounded-3" style="max-height: 400px; object-fit: contain; transition: transform 0.3s ease;" />
+                    
+                    <button type="button" class="wishlist-btn-corner @(Model.IsInWishlist ? "active" : "")" style="top: 20px; right: 20px; width: 44px; height: 44px; font-size: 1.2rem;" onclick="toggleWishlist(@Model.Id, this)" title="Add to Wishlist">
+                        <i class="bi @(Model.IsInWishlist ? "bi-heart-fill" : "bi-heart")"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Thumbnail Selector -->
+            @if (Model.Images.Count > 1)
+            {
+                <div class="d-flex gap-2 overflow-auto pb-2">
+                    @for (int i = 0; i < Model.Images.Count; i++)
+                    {
+                        var img = Model.Images[i];
+                        <div class="thumbnail-box border rounded-3 p-1 bg-white cursor-pointer @(i == 0 ? "border-primary active-thumb" : "")" 
+                             style="width: 75px; height: 75px; cursor: pointer;" 
+                             onclick="switchProductImage(this, '@img.ImageUrl')">
+                            <img src="@img.ImageUrl" class="w-100 h-100 rounded-2" style="object-fit: cover;" alt="Thumbnail" />
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- Product Overview & Purchase Form -->
+        <div class="col-lg-6">
+            <div class="ps-lg-3">
+                <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                    <span class="badge bg-primary-subtle text-primary text-uppercase px-3 py-1 fw-semibold">@Model.CategoryName</span>
+                    @if (!string.IsNullOrEmpty(Model.BrandName))
+                    {
+                        <span class="badge bg-light text-dark border">@Model.BrandName</span>
+                    }
+                    <span class="text-muted small ms-auto">SKU: <strong id="displayProductSku" class="text-dark">@Model.SKU</strong></span>
+                </div>
+
+                <h1 class="h2 fw-bold text-dark mb-3">@Model.Name</h1>
+
+                <!-- Rating -->
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <div class="rating-stars text-warning">
+                        @for (int i = 1; i <= 5; i++)
+                        {
+                            if (i <= Math.Floor(Model.AverageRating))
+                            {
+                                <i class="bi bi-star-fill"></i>
+                            }
+                            else if (i - Model.AverageRating <= 0.5)
+                            {
+                                <i class="bi bi-star-half"></i>
+                            }
+                            else
+                            {
+                                <i class="bi bi-star"></i>
+                            }
+                        }
+                    </div>
+                    <span class="fw-bold">@Model.AverageRating.ToString("0.0")</span>
+                    <span class="text-muted small">(@Model.TotalReviews customer ratings)</span>
+                </div>
+
+                @if (Model.DiscountPrice.HasValue && Model.DiscountPrice.Value < Model.BasePrice)
+                {
+                    <!-- Flash Deal Urgency Banner -->
+                    <div class="mb-3 p-2 px-3 rounded-3 d-flex flex-wrap align-items-center justify-content-between text-white shadow-sm" style="background: linear-gradient(90deg, #ef4444 0%, #f97316 100%);">
+                        <div class="d-flex align-items-center gap-2 small fw-bold">
+                            <i class="bi bi-lightning-charge-fill text-warning fs-6"></i>
+                            <span>LIMITED TIME FLASH DEAL</span>
+                        </div>
+                        <div class="small fw-semibold mono" style="font-size: 0.8rem;">
+                            Ends in: <span id="detailTimerDisplay" class="badge bg-black bg-opacity-40 text-white px-2 py-1">04h : 28m : 15s</span>
+                        </div>
+                    </div>
+                }
+
+                <!-- Live Price Box -->
+                <div class="p-3 bg-light rounded-4 d-flex align-items-baseline gap-3 mb-4 border">
+                    <span class="display-6 fw-bold text-dark" id="displayProductPrice">₹@Model.EffectivePrice.ToString("N0")</span>
+                    <span id="displayOriginalPrice" class="fs-5 text-muted text-decoration-line-through @(Model.DiscountPrice.HasValue && Model.DiscountPrice.Value < Model.BasePrice ? "" : "d-none")">
+                        ₹@Model.BasePrice.ToString("N0")
+                    </span>
+                    <span id="displayDiscountBadge" class="badge bg-danger fs-7 @(Model.DiscountPrice.HasValue && Model.DiscountPrice.Value < Model.BasePrice ? "" : "d-none")">
+                        Save @Model.DiscountPercentage%
+                    </span>
+                    <span class="text-muted small ms-auto">(Incl. of all taxes)</span>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(Model.ShortDescription))
+                {
+                    <p class="text-muted mb-4 lead fs-6">@Model.ShortDescription</p>
+                }
+
+                <!-- Add to Cart / Order Form -->
+                <form id="productAddToCartForm" class="mb-4">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" id="selectedProductId" value="@Model.Id" />
+
+                    <!-- Advanced Multi-Attribute & Size/Variant Selector -->
+                    @if (Model.Variants.Count > 0)
+                    {
+                        <div class="mb-4 p-3 bg-white rounded-4 border shadow-sm">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label fw-bold mb-0 text-dark d-flex align-items-center gap-1">
+                                    <i class="bi bi-rulers text-primary"></i> Select Size / Option:
+                                </label>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 text-primary fw-semibold small" data-bs-toggle="modal" data-bs-target="#sizeGuideModal">
+                                        <i class="bi bi-info-circle me-1"></i> Size Guide
+                                    </button>
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" id="selectedVariantBadge">
+                                        @Model.Variants[0].VariantName
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="d-flex flex-wrap gap-2 pt-2" id="variantSelectorGroup">
+                                @for (int i = 0; i < Model.Variants.Count; i++)
+                                {
+                                    var v = Model.Variants[i];
+                                    var isOutOfStock = v.StockQuantity <= 0;
+                                    <div>
+                                        <input type="radio" class="btn-check variant-radio" name="selectedVariantId" 
+                                               id="var_@v.Id" value="@v.Id" 
+                                               data-price="@v.Price" 
+                                               data-sku="@v.SKU" 
+                                               data-stock="@v.StockQuantity" 
+                                               data-name="@v.VariantName"
+                                               @(i == 0 ? "checked" : "") />
+                                        <label class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-2 fw-semibold position-relative d-inline-flex align-items-center gap-1 @(isOutOfStock ? "opacity-75" : "")" 
+                                               for="var_@v.Id" style="transition: all 0.2s ease;">
+                                            <span>@v.VariantName</span>
+                                            <span class="badge bg-light text-dark border ms-1">₹@v.Price.ToString("N0")</span>
+                                            @if (isOutOfStock)
+                                            {
+                                                <span class="badge bg-danger text-white ms-1">Out of stock</span>
+                                            }
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Quantity & Action Buttons -->
+                    <div class="d-flex flex-wrap align-items-center gap-3">
+                        <div class="quantity-picker shadow-sm">
+                            <button type="button" onclick="decreaseQty()">-</button>
+                            <input type="number" id="detailsQty" value="1" min="1" max="@Math.Max(1, Model.StockQuantity)" readonly />
+                            <button type="button" onclick="increaseQty()">+</button>
+                        </div>
+
+                        <button type="button" id="btnAddToCartDetails" class="btn btn-outline-primary btn-lg rounded-pill px-4 flex-grow-1 d-inline-flex align-items-center justify-content-center gap-2 fw-semibold" 
+                                onclick="const v = document.querySelector('input[name=selectedVariantId]:checked'); addToCart(@Model.Id, v ? v.value : null, document.getElementById('detailsQty').value);"
+                                @(Model.StockQuantity <= 0 ? "disabled" : "")>
+                            <i class="bi bi-bag-plus fs-5"></i> <span id="btnCartText">@(Model.StockQuantity > 0 ? "Add to Cart" : "Out of Stock")</span>
+                        </button>
+
+                        <button type="button" id="btnBuyNowDetails" class="btn btn-primary btn-lg rounded-pill px-4 flex-grow-1 d-inline-flex align-items-center justify-content-center gap-2 fw-bold shadow-sm" 
+                                onclick="const v = document.querySelector('input[name=selectedVariantId]:checked'); buyNow(@Model.Id, v ? v.value : null, document.getElementById('detailsQty').value, this);"
+                                @(Model.StockQuantity <= 0 ? "disabled" : "")>
+                            <i class="bi bi-lightning-charge-fill fs-5"></i> <span id="btnBuyText">Order / Buy Now</span>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Real-Time Stock Status & Guarantee Badges -->
+                <div class="d-flex flex-column gap-2 border-top pt-3 text-muted small">
+                    <div class="d-flex align-items-center gap-2" id="stockStatusContainer">
+                        @if (Model.StockQuantity > 0)
+                        {
+                            <span class="badge bg-success-subtle text-success fw-bold p-2" id="stockBadge">
+                                <i class="bi bi-check-circle-fill me-1"></i> In Stock (<span id="stockCountNumber">@Model.StockQuantity</span> units ready to ship)
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger-subtle text-danger fw-bold p-2" id="stockBadge">
+                                <i class="bi bi-x-circle-fill me-1"></i> Currently Out of Stock
+                            </span>
+                        }
+                    </div>
+                    <div><i class="bi bi-truck text-primary me-2"></i> Free Express Delivery on orders above ₹999</div>
+                    <div><i class="bi bi-arrow-repeat text-primary me-2"></i> Easy 7-Day Replacement & Return Guarantee</div>
+                    <div><i class="bi bi-shield-check text-success me-2"></i> 100% Genuine & Brand Warranty Included</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Tabs: Description, Reviews -->
+    <div class="card border rounded-4 shadow-sm my-5">
+        <div class="card-header bg-white border-bottom p-0">
+            <ul class="nav nav-tabs border-0 px-4 pt-2" id="productTab" role="tablist">
+                <li class="nav-item">
+                    <button class="nav-link active fw-bold py-3" id="desc-tab" data-bs-toggle="tab" data-bs-target="#desc-pane" type="button" role="tab">
+                        <i class="bi bi-card-text me-1"></i> Detailed Description
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link fw-bold py-3" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews-pane" type="button" role="tab">
+                        <i class="bi bi-chat-left-dots me-1"></i> Customer Reviews (@Model.Reviews.Count)
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body p-4 p-md-5">
+            <div class="tab-content" id="productTabContent">
+                <!-- Description Tab -->
+                <div class="tab-pane fade show active" id="desc-pane" role="tabpanel">
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <h4 class="fw-bold mb-3">Product Overview</h4>
+                            <div class="text-muted" style="white-space: pre-line; line-height: 1.8;">
+                                @Model.Description
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reviews Tab -->
+                <div class="tab-pane fade" id="reviews-pane" role="tabpanel">
+                    <div class="row g-4">
+                        <div class="col-lg-7">
+                            <h4 class="fw-bold mb-4">Verified Customer Reviews</h4>
+                            @if (Model.Reviews.Count == 0)
+                            {
+                                <div class="p-4 text-center bg-light rounded-3 text-muted">
+                                    <i class="bi bi-chat-square-dots fs-1"></i>
+                                    <p class="mt-2 mb-0">No reviews yet for this product. Be the first to share your experience!</p>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="d-flex flex-column gap-3">
+                                    @foreach (var rev in Model.Reviews)
+                                    {
+                                        <div class="p-3 bg-light rounded-3 border">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 0.85rem;">
+                                                        @rev.UserName.Substring(0, 1).ToUpper()
+                                                    </div>
+                                                    <div>
+                                                        <span class="fw-bold">@rev.UserName</span>
+                                                        @if (rev.IsVerifiedPurchase)
+                                                        {
+                                                            <span class="badge bg-success-subtle text-success small ms-1"><i class="bi bi-patch-check-fill"></i> Verified Buyer</span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                                <div class="rating-stars">
+                                                    @for (int i = 1; i <= 5; i++)
+                                                    {
+                                                        <i class="bi @(i <= rev.Rating ? "bi-star-fill" : "bi-star")"></i>
+                                                    }
+                                                </div>
+                                            </div>
+                                            <h6 class="fw-bold mb-1">@rev.Title</h6>
+                                            <p class="text-muted mb-1 small">@rev.Comment</p>
+                                            <small class="text-muted" style="font-size: 0.75rem;">Reviewed on @rev.CreatedAt.ToString("MMM dd, yyyy")</small>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Add Review Form -->
+                        <div class="col-lg-5">
+                            <div class="p-4 bg-light rounded-4 border">
+                                <h5 class="fw-bold mb-3">Write a Customer Review</h5>
+                                @if (User.Identity?.IsAuthenticated == true)
+                                {
+                                    <form asp-action="AddReview" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="ProductId" value="@Model.Id" />
+                                        <input type="hidden" name="returnSlug" value="@Model.Slug" />
+
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold">Overall Rating</label>
+                                            <select name="Rating" class="form-select" required>
+                                                <option value="5">★★★★★ (5 Stars - Excellent)</option>
+                                                <option value="4">★★★★☆ (4 Stars - Good)</option>
+                                                <option value="3">★★★☆☆ (3 Stars - Average)</option>
+                                                <option value="2">★★☆☆☆ (2 Stars - Below Average)</option>
+                                                <option value="1">★☆☆☆☆ (1 Star - Poor)</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold">Review Headline</label>
+                                            <input type="text" name="Title" class="form-control" placeholder="Summarize your experience..." required />
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold">Detailed Review</label>
+                                            <textarea name="Comment" class="form-control" rows="3" placeholder="What did you like or dislike about this product?" required></textarea>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary w-100 fw-semibold">
+                                            <i class="bi bi-check-lg me-1"></i> Submit Review
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <p class="text-muted small">Please sign in to your customer account to submit a review.</p>
+                                    <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Context.Request.Path" class="btn btn-outline-primary w-100">
+                                        Sign In to Review
+                                    </a>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Related Products -->
+    @if (Model.RelatedProducts.Count > 0)
+    {
+        <div class="my-5">
+            <h3 class="fw-bold mb-4">Related Products You May Like</h3>
+            <div class="row g-4">
+                @foreach (var related in Model.RelatedProducts)
+                {
+                    <div class="col-6 col-md-3">
+                        <div class="product-card" data-href="@Url.Action("Details", "Shop", new { slug = related.Slug })">
+                            <a asp-action="Details" asp-route-slug="@related.Slug" class="product-img-wrap">
+                                <img src="@related.PrimaryImageUrl" alt="@related.Name" loading="lazy" />
+                            </a>
+                            <div class="product-body">
+                                <a asp-action="Details" asp-route-slug="@related.Slug" class="product-title" title="@related.Name">
+                                    @related.Name
+                                </a>
+                                <div class="product-price-row">
+                                    <span class="price-current">₹@related.EffectivePrice.ToString("N0")</span>
+                                    <button type="button" class="btn-add-cart-mini" onclick="addToCart(@related.Id); event.stopPropagation();" title="Add to Cart">
+                                        <i class="bi bi-bag-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Size Guide & Measurement Chart Modal -->
+<div class="modal fade" id="sizeGuideModal" tabindex="-1" aria-labelledby="sizeGuideModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <div class="modal-header border-bottom-0 pb-0">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="bg-primary-subtle text-primary rounded-circle p-2">
+                        <i class="bi bi-rulers fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" id="sizeGuideModalLabel">Standard Sizing & Measurement Guide</h5>
+                        <small class="text-muted">Use this chart to find your perfect fit</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4">
+                <!-- Nav tabs -->
+                <ul class="nav nav-pills nav-fill mb-3 bg-light p-1 rounded-pill" id="sizeTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active rounded-pill fw-bold" id="apparel-tab" data-bs-toggle="pill" data-bs-target="#apparel-size" type="button" role="tab">Shirts / T-Shirts / Kurtis</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link rounded-pill fw-bold" id="bottoms-tab" data-bs-toggle="pill" data-bs-target="#bottoms-size" type="button" role="tab">Jeans & Trousers</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link rounded-pill fw-bold" id="shoes-tab" data-bs-toggle="pill" data-bs-target="#shoes-size" type="button" role="tab">Footwear (UK/EU)</button>
+                    </li>
+                </ul>
+
+                <!-- Tab panes -->
+                <div class="tab-content border rounded-4 p-3 bg-white shadow-sm" id="sizeTabContent">
+                    <!-- Apparel Sizing -->
+                    <div class="tab-pane fade show active" id="apparel-size" role="tabpanel">
+                        <table class="table table-hover align-middle mb-0 text-center">
+                            <thead class="table-light small text-uppercase">
+                                <tr>
+                                    <th>Size</th>
+                                    <th>Chest (Inches)</th>
+                                    <th>Length (Inches)</th>
+                                    <th>Shoulder (Inches)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><span class="badge bg-primary-subtle text-primary fw-bold">S</span></td><td>38"</td><td>27"</td><td>16.5"</td></tr>
+                                <tr><td><span class="badge bg-primary-subtle text-primary fw-bold">M</span></td><td>40"</td><td>28"</td><td>17.5"</td></tr>
+                                <tr><td><span class="badge bg-primary-subtle text-primary fw-bold">L</span></td><td>42"</td><td>29"</td><td>18.5"</td></tr>
+                                <tr><td><span class="badge bg-primary-subtle text-primary fw-bold">XL</span></td><td>44"</td><td>30"</td><td>19.5"</td></tr>
+                                <tr><td><span class="badge bg-primary-subtle text-primary fw-bold">XXL</span></td><td>46"</td><td>31"</td><td>20.5"</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Bottoms Sizing -->
+                    <div class="tab-pane fade" id="bottoms-size" role="tabpanel">
+                        <table class="table table-hover align-middle mb-0 text-center">
+                            <thead class="table-light small text-uppercase">
+                                <tr>
+                                    <th>Size</th>
+                                    <th>Waist (Inches)</th>
+                                    <th>Hip (Inches)</th>
+                                    <th>Inseam (Inches)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><span class="badge bg-secondary-subtle text-dark fw-bold">30</span></td><td>30"</td><td>37"</td><td>31"</td></tr>
+                                <tr><td><span class="badge bg-secondary-subtle text-dark fw-bold">32</span></td><td>32"</td><td>39"</td><td>32"</td></tr>
+                                <tr><td><span class="badge bg-secondary-subtle text-dark fw-bold">34</span></td><td>34"</td><td>41"</td><td>32"</td></tr>
+                                <tr><td><span class="badge bg-secondary-subtle text-dark fw-bold">36</span></td><td>36"</td><td>43"</td><td>33"</td></tr>
+                                <tr><td><span class="badge bg-secondary-subtle text-dark fw-bold">38</span></td><td>38"</td><td>45"</td><td>33"</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Footwear Sizing -->
+                    <div class="tab-pane fade" id="shoes-size" role="tabpanel">
+                        <table class="table table-hover align-middle mb-0 text-center">
+                            <thead class="table-light small text-uppercase">
+                                <tr>
+                                    <th>UK / India</th>
+                                    <th>EU Size</th>
+                                    <th>US Size</th>
+                                    <th>Foot Length (CM)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><span class="badge bg-success-subtle text-success fw-bold">UK 7</span></td><td>41</td><td>8</td><td>25.4 cm</td></tr>
+                                <tr><td><span class="badge bg-success-subtle text-success fw-bold">UK 8</span></td><td>42</td><td>9</td><td>26.2 cm</td></tr>
+                                <tr><td><span class="badge bg-success-subtle text-success fw-bold">UK 9</span></td><td>43</td><td>10</td><td>27.1 cm</td></tr>
+                                <tr><td><span class="badge bg-success-subtle text-success fw-bold">UK 10</span></td><td>44</td><td>11</td><td>27.9 cm</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="mt-3 p-3 bg-light rounded-3 d-flex align-items-center gap-2 text-muted small">
+                    <i class="bi bi-shield-check text-success fs-5"></i>
+                    <span><strong>Hassle-Free Exchanges:</strong> If the size doesn't fit, request a free size exchange within 7 days of delivery.</span>
+                </div>
+            </div>
+            <div class="modal-footer border-top-0 pt-0">
+                <button type="button" class="btn btn-primary rounded-pill px-4" data-bs-dismiss="modal">Got It</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    let currentAvailableStock = @Model.StockQuantity;
+
+    function decreaseQty() {
+        const q = document.getElementById('detailsQty');
+        let val = parseInt(q.value) || 1;
+        if (val > 1) {
+            q.value = val - 1;
+        }
+    }
+
+    function increaseQty() {
+        const q = document.getElementById('detailsQty');
+        let val = parseInt(q.value) || 1;
+        if (val < currentAvailableStock) {
+            q.value = val + 1;
+        }
+    }
+
+    // Dynamic Variant Switcher
+    document.querySelectorAll('.variant-radio').forEach(radio => {
+        radio.addEventListener('change', function () {
+            if (this.checked) {
+                const price = parseFloat(this.dataset.price);
+                const sku = this.dataset.sku;
+                const stock = parseInt(this.dataset.stock);
+                const name = this.dataset.name;
+
+                currentAvailableStock = stock;
+
+                // Update Price Display
+                document.getElementById('displayProductPrice').innerText = '₹' + price.toLocaleString('en-IN');
+                
+                // Update SKU Display
+                if (sku) {
+                    document.getElementById('displayProductSku').innerText = sku;
+                }
+
+                // Update Variant Badge
+                const badge = document.getElementById('selectedVariantBadge');
+                if (badge && name) {
+                    badge.innerText = name;
+                }
+
+                // Update Quantity Max
+                const qtyInput = document.getElementById('detailsQty');
+                qtyInput.max = Math.max(1, stock);
+                if (parseInt(qtyInput.value) > stock) {
+                    qtyInput.value = Math.max(1, stock);
+                }
+
+                // Update Stock Status Badge & Buttons
+                const stockBadge = document.getElementById('stockBadge');
+                const btnCart = document.getElementById('btnAddToCartDetails');
+                const btnBuy = document.getElementById('btnBuyNowDetails');
+                const btnCartText = document.getElementById('btnCartText');
+
+                if (stock > 0) {
+                    stockBadge.className = 'badge bg-success-subtle text-success fw-bold p-2';
+                    stockBadge.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i> In Stock (${stock} units ready to ship)`;
+                    btnCart.disabled = false;
+                    btnBuy.disabled = false;
+                    btnCartText.innerText = 'Add to Cart';
+                } else {
+                    stockBadge.className = 'badge bg-danger-subtle text-danger fw-bold p-2';
+                    stockBadge.innerHTML = `<i class="bi bi-x-circle-fill me-1"></i> Currently Out of Stock`;
+                    btnCart.disabled = true;
+                    btnBuy.disabled = true;
+                    btnCartText.innerText = 'Out of Stock';
+                }
+            }
+        });
+    });
+
+    // Trigger on load for the first selected variant if exists
+    window.addEventListener('DOMContentLoaded', () => {
+        const checkedVariant = document.querySelector('.variant-radio:checked');
+        if (checkedVariant) {
+            checkedVariant.dispatchEvent(new Event('change'));
+        }
+
+        // Live Flash Deal Timer in Details
+        const timerDisplay = document.getElementById('detailTimerDisplay');
+        if (timerDisplay) {
+            function updateDetailTimer() {
+                const now = new Date();
+                const midnight = new Date(now);
+                midnight.setHours(24, 0, 0, 0);
+
+                let diffMs = midnight - now;
+                if (diffMs <= 0) diffMs = 24 * 60 * 60 * 1000;
+
+                const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+                timerDisplay.innerText = `${String(hours).padStart(2, '0')}h : ${String(minutes).padStart(2, '0')}m : ${String(seconds).padStart(2, '0')}s`;
+            }
+            updateDetailTimer();
+            setInterval(updateDetailTimer, 1000);
+        }
+    });
+</script>
+}

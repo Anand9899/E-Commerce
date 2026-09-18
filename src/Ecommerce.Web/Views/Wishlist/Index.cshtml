@@ -1,0 +1,61 @@
+@model List<ProductListItemVM>
+@{
+    ViewData["Title"] = "My Wishlist";
+}
+
+<div class="container my-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb small">
+            <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Wishlist</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold mb-0">My Wishlist (@Model.Count)</h2>
+        <a asp-controller="Shop" asp-action="Index" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+            Explore More Products
+        </a>
+    </div>
+
+    @if (Model.Count == 0)
+    {
+        <div class="text-center py-5 bg-white rounded-4 border shadow-sm my-4">
+            <div class="display-1 text-danger"><i class="bi bi-heart"></i></div>
+            <h4 class="fw-bold mt-3">Your Wishlist is Empty</h4>
+            <p class="text-muted">Save your favorite items here to purchase them later.</p>
+            <a asp-controller="Shop" asp-action="Index" class="btn btn-primary rounded-pill px-4">Start Exploring</a>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var item in Model)
+            {
+                <div class="col-6 col-md-4 col-lg-3" id="wishlist-col-@item.Id">
+                    <div class="product-card" data-href="@Url.Action("Details", "Shop", new { slug = item.Slug })">
+                        <a asp-controller="Shop" asp-action="Details" asp-route-slug="@item.Slug" class="product-img-wrap">
+                            <img src="@item.PrimaryImageUrl" alt="@item.Name" loading="lazy" />
+                            <button type="button" class="wishlist-btn-corner active" onclick="toggleWishlist(@item.Id, this); document.getElementById('wishlist-col-@item.Id').remove(); event.stopPropagation();" title="Remove from Wishlist">
+                                <i class="bi bi-heart-fill"></i>
+                            </button>
+                        </a>
+                        <div class="product-body">
+                            <div class="product-category">@item.CategoryName</div>
+                            <a asp-controller="Shop" asp-action="Details" asp-route-slug="@item.Slug" class="product-title" title="@item.Name">
+                                @item.Name
+                            </a>
+                            <div class="product-price-row">
+                                <span class="price-current">₹@item.EffectivePrice.ToString("N0")</span>
+                                <button type="button" class="btn btn-primary btn-sm rounded-pill px-3" onclick="addToCart(@item.Id); event.stopPropagation();">
+                                    <i class="bi bi-bag-plus me-1"></i> Add to Cart
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

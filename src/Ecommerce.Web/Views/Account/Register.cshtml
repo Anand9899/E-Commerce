@@ -1,0 +1,137 @@
+@model RegisterVM
+@{
+    ViewData["Title"] = "Create Account";
+}
+
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card border rounded-4 shadow-sm p-4 p-md-5 bg-white">
+                <div class="text-center mb-4">
+                    <a class="brand-logo justify-content-center mb-2" asp-controller="Home" asp-action="Index">
+                        <i class="bi bi-bag-heart-fill text-primary"></i>
+                        <span>Cartivo</span>
+                    </a>
+                    <h4 class="fw-bold">Join Cartivo Today</h4>
+                    <p class="text-muted small">Create your customer account to enjoy deals & fast checkout</p>
+                </div>
+
+                <form asp-action="Register" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="ReturnUrl" />
+
+                    <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+                    @* 1. Full Name (Auto-Capitalize) *@
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Full Name *</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-person"></i></span>
+                            <input asp-for="FullName" id="regFullName" class="form-control" placeholder="Enter Your Name" style="text-transform: capitalize;" oninput="autoCapitalizeWords(this)" onblur="autoCapitalizeWords(this)" required />
+                        </div>
+                        <span asp-validation-for="FullName" class="text-danger small"></span>
+                    </div>
+
+                    @* 2. Email Address (gmail.com only) *@
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Email Address *</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-envelope"></i></span>
+                            <input asp-for="Email" class="form-control" placeholder="Enter Your Email" type="email" pattern="^[a-zA-Z0-9._%+-]+@@gmail\.com$" title="Only valid @@gmail.com email addresses are allowed" required />
+                        </div>
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
+
+                    @* 3. Phone Number (+91 Fixed, 10 Digits) *@
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Mobile Number *</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted"><i class="bi bi-telephone"></i></span>
+                            <span class="input-group-text bg-light fw-bold text-dark border-end-0 px-2" style="user-select: none; font-size: 0.95rem;">+91</span>
+                            <input asp-for="PhoneNumber" class="form-control border-start-0 ps-2" placeholder="Enter Your Phone Number" maxlength="10" pattern="[0-9]{10}" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);" required />
+                        </div>
+                        <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
+                    </div>
+
+                    @* 4. Gender *@
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Gender *</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-gender-ambiguous"></i></span>
+                            <select asp-for="Gender" class="form-select" required>
+                                <option value="" disabled selected>Select Gender</option>
+                                <option value="Male">👨 Male</option>
+                                <option value="Female">👩 Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <span asp-validation-for="Gender" class="text-danger small"></span>
+                    </div>
+
+                    @* 5. Password *@
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Password *</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-lock"></i></span>
+                            <input asp-for="Password" id="regPassword" type="password" class="form-control border-end-0" placeholder="Enter Password" required />
+                            <button type="button" class="btn btn-outline-secondary bg-white border-start-0" onclick="togglePass('regPassword', 'regPassIcon')" title="Show/Hide Password">
+                                <i class="bi bi-eye" id="regPassIcon"></i>
+                            </button>
+                        </div>
+                        <span asp-validation-for="Password" class="text-danger small"></span>
+                    </div>
+
+                    @* 6. Confirm Password *@
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Confirm Password *</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-shield-lock"></i></span>
+                            <input asp-for="ConfirmPassword" id="regConfirmPassword" type="password" class="form-control border-end-0" placeholder="Enter Confirm Password" required />
+                            <button type="button" class="btn btn-outline-secondary bg-white border-start-0" onclick="togglePass('regConfirmPassword', 'regConfirmPassIcon')" title="Show/Hide Password">
+                                <i class="bi bi-eye" id="regConfirmPassIcon"></i>
+                            </button>
+                        </div>
+                        <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2 rounded-pill fw-bold mb-3 shadow-sm">
+                        <i class="bi bi-person-plus-fill me-1"></i> Create Customer Account
+                    </button>
+                </form>
+
+                <div class="text-center text-muted small">
+                    Already registered? 
+                    <a asp-action="Login" asp-route-returnUrl="@Model.ReturnUrl" class="fw-bold text-primary text-decoration-none">Sign In</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        function autoCapitalizeWords(input) {
+            if (!input || !input.value) return;
+            var words = input.value.split(" ");
+            for (var i = 0; i < words.length; i++) {
+                if (words[i].length > 0) {
+                    words[i] = words[i].charAt(0).toUpperCase() + words[i].slice(1);
+                }
+            }
+            input.value = words.join(" ");
+        }
+
+        function togglePass(inputId, iconId) {
+            var passInput = document.getElementById(inputId);
+            var icon = document.getElementById(iconId);
+            if (passInput.type === "password") {
+                passInput.type = "text";
+                icon.className = "bi bi-eye-slash text-primary";
+            } else {
+                passInput.type = "password";
+                icon.className = "bi bi-eye";
+            }
+        }
+    </script>
+}

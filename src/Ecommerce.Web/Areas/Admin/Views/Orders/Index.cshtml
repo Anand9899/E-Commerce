@@ -1,0 +1,93 @@
+@model List<OrderListVM>
+@{
+    ViewData["Title"] = "Customer Orders";
+    var currentStatus = ViewBag.CurrentStatus as OrderStatus?;
+}
+
+<div class="card border rounded-4 shadow-sm p-4 bg-white">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-0">Orders Management</h4>
+            <span class="text-muted small">Process customer fulfillments and update tracking statuses</span>
+        </div>
+
+        <!-- Filter tabs -->
+        <div class="btn-group mt-2 mt-md-0" role="group">
+            <a asp-action="Index" class="btn btn-sm @(currentStatus == null ? "btn-primary" : "btn-outline-secondary")">All</a>
+            <a asp-action="Index" asp-route-status="Confirmed" class="btn btn-sm @(currentStatus == OrderStatus.Confirmed ? "btn-primary" : "btn-outline-secondary")">Confirmed</a>
+            <a asp-action="Index" asp-route-status="Processing" class="btn btn-sm @(currentStatus == OrderStatus.Processing ? "btn-primary" : "btn-outline-secondary")">Processing</a>
+            <a asp-action="Index" asp-route-status="Shipped" class="btn btn-sm @(currentStatus == OrderStatus.Shipped ? "btn-primary" : "btn-outline-secondary")">Shipped</a>
+            <a asp-action="Index" asp-route-status="Delivered" class="btn btn-sm @(currentStatus == OrderStatus.Delivered ? "btn-primary" : "btn-outline-secondary")">Delivered</a>
+            <a asp-action="Index" asp-route-status="ReturnRequested" class="btn btn-sm @(currentStatus == OrderStatus.ReturnRequested ? "btn-warning text-dark fw-bold" : "btn-outline-warning text-dark")">Returns</a>
+            <a asp-action="Index" asp-route-status="Refunded" class="btn btn-sm @(currentStatus == OrderStatus.Refunded ? "btn-primary" : "btn-outline-secondary")">Refunded</a>
+            <a asp-action="Index" asp-route-status="Cancelled" class="btn btn-sm @(currentStatus == OrderStatus.Cancelled ? "btn-primary" : "btn-outline-secondary")">Cancelled</a>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table align-middle table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Order #</th>
+                    <th>Date</th>
+                    <th>Items</th>
+                    <th>Grand Total</th>
+                    <th>Payment Method</th>
+                    <th>Payment Status</th>
+                    <th>Order Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var ord in Model)
+                {
+                    <tr>
+                        <td class="fw-bold">
+                            <div>@ord.OrderNumber</div>
+                            @if (!string.IsNullOrEmpty(ord.TrackingNumber))
+                            {
+                                <small class="text-muted font-monospace"><i class="bi bi-truck text-primary me-1"></i>@ord.TrackingNumber</small>
+                            }
+                        </td>
+                        <td>@ord.OrderDate.ToString("MMM dd, yyyy")</td>
+                        <td>@ord.TotalItems items</td>
+                        <td class="fw-bold">₹@ord.GrandTotal.ToString("N0")</td>
+                        <td><span class="badge bg-light text-dark border">@ord.PaymentMethod</span></td>
+                        <td>
+                            <span class="badge @(ord.PaymentStatus == PaymentStatus.Paid ? "bg-success-subtle text-success" : (ord.PaymentStatus == PaymentStatus.Refunded ? "bg-info-subtle text-info" : "bg-warning-subtle text-warning"))">
+                                @ord.PaymentStatus
+                            </span>
+                        </td>
+                        <td>
+                            @{
+                                string sClass = ord.Status switch
+                                {
+                                    OrderStatus.Delivered => "bg-success",
+                                    OrderStatus.Cancelled => "bg-danger",
+                                    OrderStatus.Shipped => "bg-info text-dark",
+                                    OrderStatus.ReturnRequested => "bg-warning text-dark",
+                                    OrderStatus.Returned => "bg-secondary text-white",
+                                    OrderStatus.Refunded => "bg-dark text-white",
+                                    _ => "bg-primary"
+                                };
+                            }
+                            <span class="badge @sClass">@ord.Status</span>
+                            @if (!string.IsNullOrEmpty(ord.CourierPartner))
+                            {
+                                <div class="mt-1"><span class="badge bg-light text-secondary border font-monospace small">@ord.CourierPartner</span></div>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <a asp-action="Invoice" asp-route-id="@ord.Id" target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill px-2 me-1" title="View Tax Invoice">
+                                <i class="bi bi-file-earmark-pdf"></i>
+                            </a>
+                            <a asp-action="Details" asp-route-id="@ord.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                Manage
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,432 @@
+@model OrderDetailVM
+@{
+    Layout = null; // Clean standalone invoice layout for seamless printing & PDF saving
+    ViewData["Title"] = "Tax Invoice - " + Model.OrderNumber;
+
+    // GST Calculation (18% Total: 9% CGST + 9% SGST)
+    decimal totalTaxableValue = Math.Round((Model.SubTotal - Model.DiscountAmount) / 1.18m, 2);
+    decimal totalGst = Math.Round(Model.SubTotal - Model.DiscountAmount - totalTaxableValue, 2);
+    decimal cgst = Math.Round(totalGst / 2, 2);
+    decimal sgst = totalGst - cgst;
+    string invoiceNumber = $"INV-{Model.OrderDate:yyyyMM}-{Model.Id:D5}";
+
+    // Number to words helper for Grand Total
+    string AmountInWords(decimal amount)
+    {
+        long num = (long)Math.Floor(amount);
+        if (num == 0) return "Zero Rupees Only";
+        
+        string[] unitsMap = { "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen" };
+        string[] tensMap = { "Zero", "Ten", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety" };
+
+        string Convert(long n)
+        {
+            if (n >= 10000000) return Convert(n / 10000000) + " Crore " + (n % 10000000 > 0 ? Convert(n % 10000000) : "");
+            if (n >= 100000) return Convert(n / 100000) + " Lakh " + (n % 100000 > 0 ? Convert(n % 100000) : "");
+            if (n >= 1000) return Convert(n / 1000) + " Thousand " + (n % 1000 > 0 ? Convert(n % 1000) : "");
+            if (n >= 100) return Convert(n / 100) + " Hundred " + (n % 100 > 0 ? "and " + Convert(n % 100) : "");
+            if (n >= 20) return tensMap[n / 10] + (n % 10 > 0 ? " " + unitsMap[n % 10] : "");
+            return unitsMap[n];
+        }
+
+        return "Indian Rupees " + Convert(num).Trim() + " Only";
+    }
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tax Invoice - @Model.OrderNumber - Cartivo</title>
+    <!-- Google Fonts & Bootstrap Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --invoice-primary: #2563eb;
+            --invoice-dark: #0f172a;
+            --invoice-gray: #64748b;
+            --invoice-light: #f8fafc;
+            --invoice-border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f1f5f9;
+            color: var(--invoice-dark);
+            margin: 0;
+            padding: 24px 0;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .invoice-page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 36px 42px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+            border-radius: 12px;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .invoice-header {
+            border-bottom: 2px solid var(--invoice-dark);
+            padding-bottom: 20px;
+            margin-bottom: 24px;
+        }
+
+        .company-logo {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--invoice-primary);
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .invoice-title-badge {
+            background-color: var(--invoice-dark);
+            color: #ffffff;
+            font-weight: 800;
+            font-size: 1.15rem;
+            letter-spacing: 1.5px;
+            padding: 6px 16px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+
+        .info-card {
+            background-color: var(--invoice-light);
+            border: 1px solid var(--invoice-border);
+            border-radius: 8px;
+            padding: 14px 16px;
+            height: 100%;
+        }
+
+        .info-card-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--invoice-primary);
+            margin-bottom: 8px;
+            border-bottom: 1px solid var(--invoice-border);
+            padding-bottom: 4px;
+        }
+
+        .invoice-table th {
+            background-color: #f8fafc;
+            color: #334155;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-top: 1px solid var(--invoice-dark);
+            border-bottom: 2px solid var(--invoice-dark);
+            padding: 10px 8px;
+        }
+
+        .invoice-table td {
+            padding: 10px 8px;
+            font-size: 0.82rem;
+            border-bottom: 1px solid var(--invoice-border);
+            vertical-align: middle;
+        }
+
+        .summary-table td {
+            padding: 6px 10px;
+            font-size: 0.85rem;
+        }
+
+        .summary-total-row {
+            border-top: 2px solid var(--invoice-dark);
+            border-bottom: 2px solid var(--invoice-dark);
+            background-color: #f8fafc;
+        }
+
+        .action-toolbar {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(12px);
+            padding: 10px 20px;
+            border-radius: 50px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+            z-index: 1000;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .stamp-box {
+            border: 2px dashed #059669;
+            color: #059669;
+            border-radius: 8px;
+            padding: 8px 14px;
+            display: inline-block;
+            text-align: center;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transform: rotate(-3deg);
+        }
+
+        @@media print {
+            body {
+                background: #ffffff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .invoice-page {
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                padding: 20px 25px !important;
+                width: 100% !important;
+                min-height: auto !important;
+            }
+
+            .action-toolbar {
+                display: none !important;
+            }
+
+            @@page {
+                size: A4;
+                margin: 10mm;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Floating Action Toolbar (Hidden during Print) -->
+    <div class="action-toolbar d-print-none">
+        <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" onclick="window.print()">
+            <i class="bi bi-printer-fill me-2"></i> Print / Save as PDF
+        </button>
+        <button type="button" class="btn btn-outline-light rounded-pill px-3" onclick="window.close();">
+            <i class="bi bi-x-lg me-1"></i> Close
+        </button>
+    </div>
+
+    <!-- Main Printable Invoice Sheet -->
+    <div class="invoice-page">
+        <!-- Invoice Header -->
+        <div class="invoice-header">
+            <div class="row align-items-center">
+                <div class="col-7">
+                    <div class="company-logo">
+                        <i class="bi bi-bag-heart-fill"></i> CARTIVO
+                    </div>
+                    <div class="fw-bold text-dark fs-6 mt-1">Cartivo Retail Private Limited</div>
+                    <div class="small text-secondary" style="font-size: 0.8rem; line-height: 1.4;">
+                        Plot No. 42, Tech Park Boulevard, Sector 62, Noida, UP - 201309<br />
+                        <strong>GSTIN:</strong> 09AAACC4128H1Z8 | <strong>CIN:</strong> U52100UP2024PTC198421<br />
+                        <strong>Helpline:</strong> +91 95769 89908 | <strong>Email:</strong> billing@cartivo.com
+                    </div>
+                </div>
+                <div class="col-5 text-end">
+                    <div class="invoice-title-badge mb-2">TAX INVOICE</div>
+                    <div class="small text-muted mb-1" style="font-size: 0.75rem;">(Original for Recipient)</div>
+                    <div class="small" style="font-size: 0.85rem;">
+                        <strong>Invoice No:</strong> <span class="mono fw-bold text-dark">@invoiceNumber</span><br />
+                        <strong>Invoice Date:</strong> @Model.OrderDate.ToString("dd-MMM-yyyy")<br />
+                        <strong>Order Ref:</strong> <span class="mono">#@Model.OrderNumber</span><br />
+                        <strong>State Code:</strong> 09 (Uttar Pradesh)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Billing & Shipping Information -->
+        <div class="row g-3 mb-4">
+            <div class="col-6">
+                <div class="info-card">
+                    <div class="info-card-title"><i class="bi bi-person-fill me-1"></i> Billed To (Customer):</div>
+                    <div class="fw-bold text-dark" style="font-size: 0.9rem;">
+                        @(!string.IsNullOrWhiteSpace(Model.CustomerName) && !Model.CustomerName.Contains("@") ? Model.CustomerName : (!string.IsNullOrWhiteSpace(Model.ShippingFullName) && !Model.ShippingFullName.Contains("@") ? Model.ShippingFullName : "Customer"))
+                    </div>
+                    <div class="small text-muted mt-1" style="font-size: 0.8rem; line-height: 1.4;">
+                        @if (!string.IsNullOrEmpty(Model.CustomerEmail))
+                        {
+                            <div><strong>Email:</strong> @Model.CustomerEmail</div>
+                        }
+                        <div><strong>Phone:</strong> @Model.ShippingPhone</div>
+                        <div><strong>Address:</strong> @Model.ShippingAddressLine1 @Model.ShippingAddressLine2</div>
+                        <div>@Model.ShippingCity, @Model.ShippingState - @Model.ShippingPostalCode</div>
+                        <div>@Model.ShippingCountry</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="info-card">
+                    <div class="info-card-title"><i class="bi bi-truck me-1"></i> Shipped & Delivered To:</div>
+                    <div class="fw-bold text-dark" style="font-size: 0.9rem;">
+                        @(!string.IsNullOrWhiteSpace(Model.ShippingFullName) && !Model.ShippingFullName.Contains("@") ? Model.ShippingFullName : (!string.IsNullOrWhiteSpace(Model.CustomerName) && !Model.CustomerName.Contains("@") ? Model.CustomerName : "Customer"))
+                    </div>
+                    <div class="small text-muted mt-1" style="font-size: 0.8rem; line-height: 1.4;">
+                        <div><strong>Phone:</strong> @Model.ShippingPhone</div>
+                        <div><strong>Address:</strong> @Model.ShippingAddressLine1 @Model.ShippingAddressLine2</div>
+                        <div>@Model.ShippingCity, @Model.ShippingState - @Model.ShippingPostalCode</div>
+                        <div><strong>Place of Supply:</strong> @Model.ShippingState</div>
+                        @if (!string.IsNullOrEmpty(Model.TrackingNumber))
+                        {
+                            <div><strong>Courier Tracking:</strong> <span class="mono fw-bold text-dark">@Model.TrackingNumber</span></div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Line Items Table -->
+        <table class="table invoice-table w-100 mb-4">
+            <thead>
+                <tr>
+                    <th style="width: 5%; text-align: center;">#</th>
+                    <th style="width: 45%;">Item Description & Variant</th>
+                    <th style="width: 12%; text-align: center;">HSN Code</th>
+                    <th style="width: 8%; text-align: center;">Qty</th>
+                    <th style="width: 15%; text-align: right;">Unit Price (₹)</th>
+                    <th style="width: 15%; text-align: right;">Total (₹)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{ int itemIdx = 1; }
+                @foreach (var item in Model.Items)
+                {
+                    <tr>
+                        <td class="text-center text-muted mono" style="font-size: 0.75rem;">@itemIdx</td>
+                        <td>
+                            <div class="fw-bold text-dark">@item.ProductName</div>
+                            @if (!string.IsNullOrEmpty(item.VariantName))
+                            {
+                                <span class="badge bg-light text-secondary border mt-1" style="font-size: 0.7rem;">@item.VariantName</span>
+                            }
+                        </td>
+                        <td class="text-center mono text-secondary" style="font-size: 0.75rem;">8517.62</td>
+                        <td class="text-center fw-bold">@item.Quantity</td>
+                        <td class="text-end mono">₹@item.UnitPrice.ToString("N2")</td>
+                        <td class="text-end fw-bold mono">₹@item.TotalPrice.ToString("N2")</td>
+                    </tr>
+                    itemIdx++;
+                }
+            </tbody>
+        </table>
+
+        <!-- Summary & Tax Calculations -->
+        <div class="row g-4 mb-4 align-items-start">
+            <!-- Payment & Security Info (Left) -->
+            <div class="col-6">
+                <div class="info-card p-3 mb-3">
+                    <div class="info-card-title"><i class="bi bi-credit-card-2-front me-1"></i> Payment Summary & Verification:</div>
+                    <div class="small" style="font-size: 0.8rem; line-height: 1.5;">
+                        <div><strong>Mode of Payment:</strong> @Model.PaymentMethod</div>
+                        <div><strong>Payment Status:</strong> <span class="badge @(Model.PaymentStatus == PaymentStatus.Paid ? "bg-success" : "bg-warning text-dark")">@Model.PaymentStatus</span></div>
+                        @if (!string.IsNullOrEmpty(Model.TransactionId))
+                        {
+                            <div><strong>Transaction / UTR Ref:</strong> <span class="mono fw-bold text-dark">@Model.TransactionId</span></div>
+                        }
+                        <div><strong>Payment Time:</strong> @Model.OrderDate.ToString("dd-MMM-yyyy hh:mm tt")</div>
+                    </div>
+                </div>
+
+                <div class="p-3 bg-light border rounded-3 d-flex align-items-center gap-3">
+                    <!-- Dynamic QR code for verification -->
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=https://cartivo.com/verify-invoice?inv=@invoiceNumber" alt="Invoice QR" style="width: 70px; height: 70px; border-radius: 4px;" />
+                    <div class="small text-muted" style="font-size: 0.75rem;">
+                        <strong class="text-dark d-block">E-Invoice Verification QR</strong>
+                        Scan this official QR code with any camera scanner to verify the authenticity of this GST invoice.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tax Summary (Right) -->
+            <div class="col-6">
+                <table class="table summary-table w-100 mb-2">
+                    <tr>
+                        <td class="text-muted">Subtotal (Gross):</td>
+                        <td class="text-end mono fw-semibold">₹@Model.SubTotal.ToString("N2")</td>
+                    </tr>
+                    @if (Model.DiscountAmount > 0)
+                    {
+                        <tr class="text-success">
+                            <td>Discount (@Model.CouponCode):</td>
+                            <td class="text-end mono fw-semibold">-₹@Model.DiscountAmount.ToString("N2")</td>
+                        </tr>
+                    }
+                    <tr>
+                        <td class="text-muted">Taxable Value:</td>
+                        <td class="text-end mono">₹@totalTaxableValue.ToString("N2")</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Central GST (CGST 9%):</td>
+                        <td class="text-end mono">₹@cgst.ToString("N2")</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">State GST (SGST 9%):</td>
+                        <td class="text-end mono">₹@sgst.ToString("N2")</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Shipping & Logistics:</td>
+                        <td class="text-end mono">@(Model.ShippingFee == 0 ? "FREE" : $"₹{Model.ShippingFee:N2}")</td>
+                    </tr>
+                    <tr class="summary-total-row">
+                        <td class="fw-bold fs-6 text-dark py-2">Invoice Total:</td>
+                        <td class="text-end fw-bold fs-5 text-primary mono py-2">₹@Model.GrandTotal.ToString("N2")</td>
+                    </tr>
+                </table>
+
+                <div class="p-2 bg-light rounded-2 border text-muted small" style="font-size: 0.75rem;">
+                    <strong>Amount in Words:</strong><br />
+                    <span class="text-dark fw-bold">@AmountInWords(Model.GrandTotal)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stamp & Signatory Footer -->
+        <div class="row align-items-end pt-3 border-top mt-4">
+            <div class="col-7">
+                <h6 class="fw-bold text-dark mb-1" style="font-size: 0.75rem;">Terms & Conditions:</h6>
+                <ol class="text-muted small ps-3 mb-0" style="font-size: 0.7rem; line-height: 1.3;">
+                    <li>Goods received are covered under 7-day easy replacement policy.</li>
+                    <li>All brand warranties are serviced through respective brand centers.</li>
+                    <li>This is a computer-generated electronic tax invoice in terms of Section 31 of CGST Act, 2017.</li>
+                </ol>
+            </div>
+            <div class="col-5 text-end">
+                <div class="stamp-box mb-2">
+                    <i class="bi bi-shield-fill-check me-1"></i> CARTIVO DIGITALLY VERIFIED
+                </div>
+                <div class="fw-bold text-dark" style="font-size: 0.8rem;">For Cartivo Retail Private Limited</div>
+                <div class="text-muted small mt-3" style="font-size: 0.7rem;">(Authorized Signatory)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auto-trigger print option on load when query param ?autoPrint=true is provided -->
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('autoPrint') === 'true') {
+            window.addEventListener('DOMContentLoaded', () => {
+                setTimeout(() => { window.print(); }, 500);
+            });
+        }
+    </script>
+</body>
+</html>

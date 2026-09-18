@@ -1,0 +1,79 @@
+@model List<ReviewVM>
+@{
+    ViewData["Title"] = "Customer Reviews Moderation";
+}
+
+<div class="card border rounded-4 shadow-sm p-4 bg-white">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-0">Customer Reviews & Ratings</h4>
+            <span class="text-muted small">Moderate customer feedback and verified reviews</span>
+        </div>
+    </div>
+
+    @if (Model.Count == 0)
+    {
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-chat-left-dots fs-1"></i>
+            <p class="mt-2 mb-0">No reviews submitted yet.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>User / Product</th>
+                        <th>Rating</th>
+                        <th>Title & Comment</th>
+                        <th>Verified</th>
+                        <th>Date</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-bold">@r.UserName</div>
+                            </td>
+                            <td>
+                                <div class="rating-stars">
+                                    @for (int i = 1; i <= 5; i++)
+                                    {
+                                        <i class="bi @(i <= r.Rating ? "bi-star-fill" : "bi-star")"></i>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                <div class="fw-semibold">@r.Title</div>
+                                <small class="text-muted">@r.Comment</small>
+                            </td>
+                            <td>
+                                @if (r.IsVerifiedPurchase)
+                                {
+                                    <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle-fill me-1"></i> Verified</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-light text-muted border">Standard</span>
+                                }
+                            </td>
+                            <td>@r.CreatedAt.ToString("MMM dd, yyyy")</td>
+                            <td class="text-end">
+                                <form asp-action="Delete" asp-route-id="@r.Id" method="post" class="d-inline" onsubmit="return confirm('Remove this review?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

@@ -1,0 +1,178 @@
+@model AdminDashboardVM
+@{
+    ViewData["Title"] = "Executive Dashboard";
+}
+
+<!-- KPI Metrics Cards -->
+<div class="row g-3 g-md-4 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="kpi-card shadow-sm">
+            <div class="kpi-icon bg-primary-subtle text-primary"><i class="bi bi-currency-rupee"></i></div>
+            <div>
+                <span class="text-muted small fw-semibold">Total Revenue</span>
+                <h3 class="fw-bold mb-0">₹@Model.TotalRevenue.ToString("N0")</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="kpi-card shadow-sm">
+            <div class="kpi-icon bg-success-subtle text-success"><i class="bi bi-cart-check"></i></div>
+            <div>
+                <span class="text-muted small fw-semibold">Total Orders</span>
+                <h3 class="fw-bold mb-0">@Model.TotalOrders</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="kpi-card shadow-sm">
+            <div class="kpi-icon bg-info-subtle text-info"><i class="bi bi-people"></i></div>
+            <div>
+                <span class="text-muted small fw-semibold">Registered Customers</span>
+                <h3 class="fw-bold mb-0">@Model.TotalCustomers</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="kpi-card shadow-sm">
+            <div class="kpi-icon bg-warning-subtle text-warning"><i class="bi bi-exclamation-triangle"></i></div>
+            <div>
+                <span class="text-muted small fw-semibold">Low Stock Products</span>
+                <h3 class="fw-bold mb-0">@Model.LowStockProductsCount</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sales Revenue Chart -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card border rounded-4 shadow-sm p-4 bg-white h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">Revenue Analytics (Last 6 Months)</h5>
+                <span class="badge bg-light text-dark border">Auto-synced</span>
+            </div>
+            <div style="height: 300px;">
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Low Stock Inventory Alert -->
+    <div class="col-lg-4">
+        <div class="card border rounded-4 shadow-sm p-4 bg-white h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0">Inventory Alerts</h5>
+                <a asp-controller="Products" asp-action="Index" class="small text-primary text-decoration-none">Manage</a>
+            </div>
+            @if (Model.LowStockProducts.Count == 0)
+            {
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-check2-circle text-success fs-1"></i>
+                    <p class="mt-2 mb-0">All product stock levels are healthy.</p>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-3">
+                    @foreach (var p in Model.LowStockProducts)
+                    {
+                        <div class="d-flex align-items-center gap-3 border-bottom pb-2">
+                            <img src="@p.PrimaryImageUrl" class="rounded border" style="width: 45px; height: 45px; object-fit: cover;" />
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0 fw-semibold text-truncate small" style="max-width: 150px;">@p.Name</h6>
+                                <small class="text-muted">SKU: @p.SKU</small>
+                            </div>
+                            <span class="badge bg-danger">@p.StockQuantity left</span>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Recent Orders Table -->
+<div class="card border rounded-4 shadow-sm p-4 bg-white">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0">Recent Customer Orders</h5>
+        <a asp-controller="Orders" asp-action="Index" class="btn btn-outline-primary btn-sm rounded-pill px-3">View All Orders</a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Order #</th>
+                    <th>Date</th>
+                    <th>Items</th>
+                    <th>Grand Total</th>
+                    <th>Payment</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var ord in Model.RecentOrders)
+                {
+                    <tr>
+                        <td class="fw-bold">@ord.OrderNumber</td>
+                        <td>@ord.OrderDate.ToString("MMM dd, yyyy")</td>
+                        <td>@ord.TotalItems items</td>
+                        <td class="fw-bold">₹@ord.GrandTotal.ToString("N0")</td>
+                        <td><span class="badge bg-light text-dark border">@ord.PaymentMethod</span></td>
+                        <td>
+                            <span class="badge @(ord.Status == OrderStatus.Delivered ? "bg-success" : "bg-primary")">@ord.Status</span>
+                        </td>
+                        <td>
+                            <a asp-controller="Orders" asp-action="Details" asp-route-id="@ord.Id" class="btn btn-sm btn-light border rounded-pill">
+                                View Details
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const months = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.MonthlySales.Select(m => m.Month)));
+            const revenues = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.MonthlySales.Select(m => m.Revenue)));
+
+            const ctx = document.getElementById('salesChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: 'Revenue (₹)',
+                        data: revenues,
+                        borderColor: '#4f46e5',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.35,
+                        pointBackgroundColor: '#4f46e5',
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function (value) {
+                                    return '₹' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+}

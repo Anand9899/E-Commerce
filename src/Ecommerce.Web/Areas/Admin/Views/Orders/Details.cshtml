@@ -1,0 +1,458 @@
+@model OrderDetailVM
+@{
+    ViewData["Title"] = "Order #" + Model.OrderNumber;
+}
+
+<div class="d-print-none">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-0">Order: @Model.OrderNumber</h4>
+            <span class="text-muted small">Placed on @Model.OrderDate.ToString("MMMM dd, yyyy hh:mm tt")</span>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="Invoice" asp-route-id="@Model.Id" target="_blank" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold">
+                <i class="bi bi-file-earmark-pdf me-1"></i> Tax Invoice
+            </a>
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                <i class="bi bi-arrow-left me-1"></i> Back to Orders
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Left: Order Items & Timeline -->
+        <div class="col-lg-8">
+            <!-- Order Items -->
+            <div class="card border rounded-4 shadow-sm p-4 bg-white mb-4">
+                <h5 class="fw-bold mb-3">Order Items (@Model.Items.Count)</h5>
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product</th>
+                                <th class="text-center">Quantity</th>
+                                <th class="text-end">Unit Price</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.Items)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-3">
+                                            <img src="@item.ProductImageUrl" class="rounded border" style="width: 50px; height: 50px; object-fit: cover;" />
+                                            <div>
+                                                <div class="fw-bold">@item.ProductName</div>
+                                                @if (!string.IsNullOrEmpty(item.VariantName))
+                                                {
+                                                    <small class="text-muted">@item.VariantName</small>
+                                                }
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">@item.Quantity</td>
+                                    <td class="text-end">₹@item.UnitPrice.ToString("N0")</td>
+                                    <td class="text-end fw-bold">₹@item.TotalPrice.ToString("N0")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Price Breakdown -->
+                <div class="row justify-content-end mt-3 border-top pt-3">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Subtotal:</span>
+                            <span>₹@Model.SubTotal.ToString("N2")</span>
+                        </div>
+                        @if (Model.DiscountAmount > 0)
+                        {
+                            <div class="d-flex justify-content-between mb-1 text-success">
+                                <span>Discount (@Model.CouponCode):</span>
+                                <span>-₹@Model.DiscountAmount.ToString("N2")</span>
+                            </div>
+                        }
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">GST (18%):</span>
+                            <span>₹@Model.TaxAmount.ToString("N2")</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2 pb-2 border-bottom">
+                            <span class="text-muted">Shipping Fee:</span>
+                            <span class="text-success">@(Model.ShippingFee == 0 ? "FREE" : $"₹{Model.ShippingFee:N2}")</span>
+                        </div>
+                        <div class="d-flex justify-content-between fs-5 fw-bold text-dark">
+                            <span>Grand Total:</span>
+                            <span class="text-primary">₹@Model.GrandTotal.ToString("N2")</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Activity History -->
+            <div class="card border rounded-4 shadow-sm p-4 bg-white">
+                <h5 class="fw-bold mb-3">Status Activity Timeline</h5>
+                <div class="d-flex flex-column gap-3">
+                    @foreach (var history in Model.StatusHistories)
+                    {
+                        <div class="d-flex align-items-start gap-3 border-bottom pb-3">
+                            <div class="bg-primary text-white rounded-circle p-2 fs-6 mt-1"><i class="bi bi-clock-history"></i></div>
+                            <div>
+                                <div class="fw-bold">@history.Status</div>
+                                <div class="text-muted small">@history.Notes</div>
+                                <small class="text-muted">@history.ChangedAt.ToString("MMM dd, yyyy hh:mm tt") @(history.ChangedBy != null ? $"by {history.ChangedBy}" : "")</small>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Status Management & Shipping Address -->
+        <div class="col-lg-4">
+            <!-- Shipping Info -->
+            <div class="card border rounded-4 shadow-sm p-4 bg-white mb-4">
+                <h6 class="fw-bold text-uppercase fs-7 text-muted mb-3">Customer & Delivery Info</h6>
+                <div class="fw-bold text-dark fs-6">
+                    @(!string.IsNullOrWhiteSpace(Model.ShippingFullName) && !Model.ShippingFullName.Contains("@") ? Model.ShippingFullName : (!string.IsNullOrWhiteSpace(Model.CustomerName) && !Model.CustomerName.Contains("@") ? Model.CustomerName : "Anand Mishra"))
+                </div>
+                @if (!string.IsNullOrEmpty(Model.CustomerEmail))
+                {
+                    <div class="text-muted small"><strong>Email:</strong> @Model.CustomerEmail</div>
+                }
+                <div class="text-muted small">@Model.ShippingAddressLine1 @Model.ShippingAddressLine2</div>
+                <div class="text-muted small">@Model.ShippingCity, @Model.ShippingState - @Model.ShippingPostalCode</div>
+                <div class="text-muted small">@Model.ShippingCountry</div>
+                <div class="text-muted small mt-2"><strong>Phone:</strong> @Model.ShippingPhone</div>
+                <div class="text-muted small mt-1">
+                    <strong>Payment Method:</strong> @Model.PaymentMethod 
+                    <span class="badge @(Model.PaymentStatus == PaymentStatus.Paid ? "bg-success-subtle text-success" : "bg-warning-subtle text-warning") border ms-1">@Model.PaymentStatus</span>
+                </div>
+                @if (!string.IsNullOrEmpty(Model.TransactionId))
+                {
+                    <div class="text-muted small mt-1"><strong>Ref/UTR:</strong> <span class="badge bg-light text-dark border font-monospace">@Model.TransactionId</span></div>
+                }
+            </div>
+
+            <!-- Return & Refund Management Card -->
+            @if (Model.Status == OrderStatus.ReturnRequested || Model.Status == OrderStatus.Returned || Model.Status == OrderStatus.Refunded || !string.IsNullOrEmpty(Model.ReturnReason))
+            {
+                <div class="card border rounded-4 shadow-sm p-4 bg-white mb-4 border-warning">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold text-uppercase fs-7 text-dark mb-0">
+                            <i class="bi bi-arrow-counterclockwise text-warning me-1"></i> Return & Refund
+                        </h6>
+                        <span class="badge @(Model.Status == OrderStatus.ReturnRequested ? "bg-warning text-dark" : (Model.Status == OrderStatus.Refunded ? "bg-success" : "bg-info"))">
+                            @Model.Status
+                        </span>
+                    </div>
+
+                    <div class="p-3 bg-light rounded-3 mb-3 border">
+                        <div class="small"><strong>Reason:</strong> <span class="text-danger">@Model.ReturnReason</span></div>
+                        <div class="small mt-1"><strong>Comments:</strong> @Model.ReturnComments</div>
+                        @if (!string.IsNullOrEmpty(Model.ReturnRefundPaymentDetails))
+                        {
+                            <div class="small mt-1 text-primary"><strong>Refund Target Info:</strong> @Model.ReturnRefundPaymentDetails</div>
+                        }
+                        @if (Model.ReturnRequestedAt.HasValue)
+                        {
+                            <div class="small text-muted mt-1">Requested: @Model.ReturnRequestedAt.Value.ToString("dd MMM yyyy, hh:mm tt")</div>
+                        }
+                        @if (Model.RefundAmount.HasValue)
+                        {
+                            <div class="small fw-bold text-success mt-1">Refund Amount: ₹@Model.RefundAmount.Value.ToString("N2")</div>
+                        }
+                        @if (!string.IsNullOrEmpty(Model.RefundReferenceId))
+                        {
+                            <div class="small font-monospace text-muted mt-1">Ref/UTR: @Model.RefundReferenceId</div>
+                        }
+                        @if (!string.IsNullOrEmpty(Model.RefundAdminNotes))
+                        {
+                            <div class="small text-muted mt-1">Admin Notes: @Model.RefundAdminNotes</div>
+                        }
+                    </div>
+
+                    @if (Model.Status == OrderStatus.ReturnRequested)
+                    {
+                        <form asp-action="ProcessReturn" method="post" class="d-flex flex-column gap-2">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="OrderId" value="@Model.Id" />
+
+                            <div>
+                                <label class="form-label fw-semibold small mb-1">Refund Amount (₹)</label>
+                                <input type="number" step="0.01" name="RefundAmount" class="form-control form-control-sm" value="@Model.GrandTotal" required />
+                            </div>
+
+                            <div>
+                                <label class="form-label fw-semibold small mb-1">Refund Reference ID / UTR</label>
+                                <input type="text" name="RefundReferenceId" class="form-control form-control-sm" placeholder="e.g. UTR-982187319" />
+                            </div>
+
+                            <div>
+                                <label class="form-label fw-semibold small mb-1">Admin Resolution Notes</label>
+                                <textarea name="AdminNotes" class="form-control form-control-sm" rows="2" placeholder="e.g. Item received, full refund issued..."></textarea>
+                            </div>
+
+                            <div class="form-check my-1">
+                                <input class="form-check-input" type="checkbox" name="RestockInventory" value="true" id="chkRestock" checked />
+                                <label class="form-check-label small" for="chkRestock">
+                                    Restock items into Inventory (+Stock)
+                                </label>
+                            </div>
+
+                            <div class="d-flex gap-2 mt-2">
+                                <button type="submit" name="Action" value="Refund" class="btn btn-success btn-sm flex-grow-1 rounded-pill fw-semibold">
+                                    <i class="bi bi-check-circle me-1"></i> Approve & Refund
+                                </button>
+                                <button type="submit" name="Action" value="Reject" class="btn btn-outline-danger btn-sm rounded-pill px-3">
+                                    Reject
+                                </button>
+                            </div>
+                        </form>
+                    }
+                </div>
+            }
+
+            <!-- Manage Order Status & Courier Logistics Panel -->
+            <div class="card border rounded-4 shadow-sm p-4 bg-white mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold text-uppercase fs-7 text-dark mb-0">
+                        <i class="bi bi-truck text-primary me-1"></i> Logistics & Courier Tracking
+                    </h6>
+                    <span class="badge bg-primary">@Model.Status</span>
+                </div>
+
+                <form asp-action="UpdateShipmentTracking" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="OrderId" value="@Model.Id" />
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Delivery Status</label>
+                        <select name="Status" id="adminOrderStatusSelect" class="form-select form-select-sm">
+                            @foreach (OrderStatus status in Enum.GetValues(typeof(OrderStatus)))
+                            {
+                                <option value="@status" selected="@(Model.Status == status)">@status</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Courier Partner</label>
+                        <select name="CourierPartner" class="form-select form-select-sm">
+                            <option value="">-- Select Courier Partner --</option>
+                            <option value="BlueDart Express" selected="@(Model.CourierPartner == "BlueDart Express")">BlueDart Express</option>
+                            <option value="Delhivery Logistics" selected="@(Model.CourierPartner == "Delhivery Logistics")">Delhivery Logistics</option>
+                            <option value="DTDC Express" selected="@(Model.CourierPartner == "DTDC Express")">DTDC Express</option>
+                            <option value="FedEx India" selected="@(Model.CourierPartner == "FedEx India")">FedEx India</option>
+                            <option value="Ecom Express" selected="@(Model.CourierPartner == "Ecom Express")">Ecom Express</option>
+                            <option value="India Post Speed Post" selected="@(Model.CourierPartner == "India Post Speed Post")">India Post Speed Post</option>
+                            <option value="Shadowfax" selected="@(Model.CourierPartner == "Shadowfax")">Shadowfax</option>
+                            <option value="Cartivo In-House Delivery" selected="@(Model.CourierPartner == "Cartivo In-House Delivery")">Cartivo In-House Delivery</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">AWB / Courier Tracking ID</label>
+                        <input type="text" name="TrackingNumber" class="form-control form-control-sm" value="@Model.TrackingNumber" placeholder="e.g. BLUEDART-8829103" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Current Package Location (Hub / City)</label>
+                        <input type="text" name="CurrentLocation" class="form-control form-control-sm" value="@Model.CurrentLocation" placeholder="e.g. Sorting Facility, New Delhi Hub" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Estimated Delivery Date</label>
+                        <input type="date" name="EstimatedDeliveryDate" class="form-control form-control-sm" value="@(Model.EstimatedDeliveryDate?.ToString("yyyy-MM-dd") ?? Model.OrderDate.AddDays(3).ToString("yyyy-MM-dd"))" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Transit Update Notes (Logged to Customer Timeline)</label>
+                        <textarea name="Notes" class="form-control form-control-sm" rows="2" placeholder="e.g. Package arrived at local delivery hub, out for delivery soon..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-sm w-100 rounded-pill fw-semibold py-2">
+                        <i class="bi bi-cloud-arrow-up me-1"></i> Save Tracking & Status Update
+                    </button>
+                </form>
+            </div>
+
+            <!-- Manage Payment Status -->
+            <div class="card border rounded-4 shadow-sm p-4 bg-white">
+                <h6 class="fw-bold text-uppercase fs-7 text-muted mb-3">Update Payment Status</h6>
+                <form asp-action="UpdatePaymentStatus" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="orderId" value="@Model.Id" />
+                    
+                    <label class="form-label fw-semibold small mb-1">Update Payment Status:</label>
+                    <div class="input-group input-group-sm mb-2">
+                        <select name="paymentStatus" class="form-select form-select-sm">
+                            @foreach (PaymentStatus pStatus in Enum.GetValues(typeof(PaymentStatus)))
+                            {
+                                <option value="@pStatus" selected="@(Model.PaymentStatus == pStatus)">@pStatus</option>
+                            }
+                        </select>
+                        <button type="submit" class="btn btn-outline-primary btn-sm">Update</button>
+                    </div>
+                </form>
+
+                @if (Model.PaymentStatus != PaymentStatus.Paid && Model.PaymentMethod == PaymentMethod.UPI)
+                {
+                    <form asp-action="UpdatePaymentStatus" method="post" class="mt-2">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="orderId" value="@Model.Id" />
+                        <input type="hidden" name="paymentStatus" value="@PaymentStatus.Paid" />
+                        <input type="hidden" name="notes" value="UPI payment verified by admin." />
+                        <button type="submit" class="btn btn-success btn-sm w-100 rounded-pill">
+                            <i class="bi bi-check-circle-fill me-1"></i> Verify & Mark as Paid
+                        </button>
+                    </form>
+                }
+
+                @if (!string.IsNullOrEmpty(Model.CustomerNotes))
+                {
+                    <div class="mt-3 p-2 bg-light rounded small">
+                        <strong>Customer Notes:</strong> @Model.CustomerNotes
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= DEDICATED PRINTABLE TAX INVOICE (ONLY VISIBLE ON PRINT) ================= -->
+<div class="d-none d-print-block invoice-print-wrapper p-4 bg-white text-dark">
+    <!-- Invoice Header -->
+    <div class="d-flex justify-content-between align-items-start border-bottom pb-3 mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-bag-heart-fill text-primary"></i> Cartivo
+            </h2>
+            <p class="text-muted small mb-0">Modern E-Commerce Store</p>
+            <div class="small text-secondary mt-1">
+                <div><strong>Email:</strong> support@cartivo.com | <strong>Phone:</strong> +91 95769 89908</div>
+                <div><strong>GSTIN:</strong> 27AABCU9603R1ZM</div>
+            </div>
+        </div>
+        <div class="text-end">
+            <h3 class="fw-bold text-uppercase text-primary mb-1">TAX INVOICE</h3>
+            <div class="small"><strong>Invoice / Order No:</strong> #@Model.OrderNumber</div>
+            <div class="small"><strong>Order Date:</strong> @Model.OrderDate.ToString("dd MMM yyyy, hh:mm tt")</div>
+            <div class="small"><strong>Payment Method:</strong> @Model.PaymentMethod (@Model.PaymentStatus)</div>
+            @if (!string.IsNullOrEmpty(Model.TransactionId))
+            {
+                <div class="small"><strong>Transaction Ref/UTR:</strong> @Model.TransactionId</div>
+            }
+        </div>
+    </div>
+
+    <!-- Customer & Shipping Details Grid -->
+    <div class="row mb-4">
+        <div class="col-6">
+            <div class="border rounded-2 p-3 bg-light h-100">
+                <h6 class="fw-bold text-dark mb-2 text-uppercase small border-bottom pb-1">Customer / Billed To:</h6>
+                <div class="fw-bold text-dark fs-6 mb-1">
+                    @(!string.IsNullOrWhiteSpace(Model.CustomerName) && !Model.CustomerName.Contains("@") ? Model.CustomerName : (!string.IsNullOrWhiteSpace(Model.ShippingFullName) && !Model.ShippingFullName.Contains("@") ? Model.ShippingFullName : "Anand Mishra"))
+                </div>
+                @if (!string.IsNullOrEmpty(Model.CustomerEmail))
+                {
+                    <div class="small text-muted"><strong>Email:</strong> @Model.CustomerEmail</div>
+                }
+                <div class="small text-muted"><strong>Phone:</strong> @Model.ShippingPhone</div>
+                <div class="small text-muted"><strong>Address:</strong> @Model.ShippingAddressLine1 @Model.ShippingAddressLine2</div>
+                <div class="small text-muted">@Model.ShippingCity, @Model.ShippingState - @Model.ShippingPostalCode</div>
+                <div class="small text-muted">@Model.ShippingCountry</div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="border rounded-2 p-3 bg-light h-100">
+                <h6 class="fw-bold text-dark mb-2 text-uppercase small border-bottom pb-1">Shipping & Delivery Details:</h6>
+                <div class="fw-bold text-dark fs-6 mb-1">
+                    @(!string.IsNullOrWhiteSpace(Model.ShippingFullName) && !Model.ShippingFullName.Contains("@") ? Model.ShippingFullName : (!string.IsNullOrWhiteSpace(Model.CustomerName) && !Model.CustomerName.Contains("@") ? Model.CustomerName : "Anand Mishra"))
+                </div>
+                <div class="small text-muted"><strong>Phone:</strong> @Model.ShippingPhone</div>
+                <div class="small text-muted"><strong>Address:</strong> @Model.ShippingAddressLine1 @Model.ShippingAddressLine2</div>
+                <div class="small text-muted">@Model.ShippingCity, @Model.ShippingState - @Model.ShippingPostalCode</div>
+                <div class="small text-muted"><strong>Order Status:</strong> @Model.Status</div>
+                @if (!string.IsNullOrEmpty(Model.TrackingNumber))
+                {
+                    <div class="small text-muted"><strong>Tracking No:</strong> @Model.TrackingNumber</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="mb-4">
+        <table class="table table-bordered align-middle mb-0">
+            <thead class="table-light">
+                <tr class="small text-uppercase">
+                    <th style="width: 5%; text-align: center;">#</th>
+                    <th style="width: 50%;">Product Details</th>
+                    <th class="text-center" style="width: 15%;">Quantity</th>
+                    <th class="text-end" style="width: 15%;">Unit Price</th>
+                    <th class="text-end" style="width: 15%;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{ int adminPrintItemIndex = 1; }
+                @foreach (var item in Model.Items)
+                {
+                    <tr>
+                        <td class="text-center text-muted small">@adminPrintItemIndex</td>
+                        <td>
+                            <div class="fw-bold text-dark">@item.ProductName</div>
+                            @if (!string.IsNullOrEmpty(item.VariantName))
+                            {
+                                <small class="text-muted">Variant: @item.VariantName</small>
+                            }
+                        </td>
+                        <td class="text-center">@item.Quantity</td>
+                        <td class="text-end">₹@item.UnitPrice.ToString("N2")</td>
+                        <td class="text-end fw-bold">₹@item.TotalPrice.ToString("N2")</td>
+                    </tr>
+                    adminPrintItemIndex++;
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pricing Summary Section -->
+    <div class="row justify-content-end mb-4">
+        <div class="col-6">
+            <div class="border rounded-2 p-3 bg-light">
+                <div class="d-flex justify-content-between mb-2 small">
+                    <span class="text-muted">Subtotal:</span>
+                    <span class="fw-semibold">₹@Model.SubTotal.ToString("N2")</span>
+                </div>
+                @if (Model.DiscountAmount > 0)
+                {
+                    <div class="d-flex justify-content-between mb-2 small text-success">
+                        <span>Coupon Discount (@Model.CouponCode):</span>
+                        <span class="fw-semibold">-₹@Model.DiscountAmount.ToString("N2")</span>
+                    </div>
+                }
+                <div class="d-flex justify-content-between mb-2 small">
+                    <span class="text-muted">GST (18%):</span>
+                    <span class="fw-semibold">₹@Model.TaxAmount.ToString("N2")</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2 pb-2 border-bottom small">
+                    <span class="text-muted">Shipping Charges:</span>
+                    <span class="fw-semibold">@(Model.ShippingFee == 0 ? "FREE" : $"₹{Model.ShippingFee:N2}")</span>
+                </div>
+                <div class="d-flex justify-content-between fs-5 fw-bold text-dark pt-1">
+                    <span>Grand Total:</span>
+                    <span class="text-primary">₹@Model.GrandTotal.ToString("N2")</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoice Footer / Terms -->
+    <div class="border-top pt-3 text-center text-muted small mt-4">
+        <p class="mb-1 fw-bold text-dark">Thank you for shopping with Cartivo!</p>
+        <p class="mb-0 text-muted" style="font-size: 11px;">This is a computer-generated tax invoice and does not require a physical signature.</p>
+        <p class="mb-0 text-muted" style="font-size: 11px;">For support or warranty claims, please contact support@cartivo.com or call +91 95769 89908.</p>
+    </div>
+</div>
